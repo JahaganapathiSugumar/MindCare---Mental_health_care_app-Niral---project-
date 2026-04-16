@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "MindCare",
+    "slug": "agentic-mental-care",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTabletMode": true,
+      "bundleIdentifier": "com.mentalcare.app"
+    },
+    "android": {
+      "package": "com.mentalcare.app",
+      "enableUrlQueryStringSupport": false
+    },
+    "plugins": [],
+    "jsEngine": "hermes"
+  }
+}
