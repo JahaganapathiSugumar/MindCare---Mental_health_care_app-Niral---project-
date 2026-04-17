@@ -1,6 +1,6 @@
-# MindCare - Mental Health Authentication System
+# MindCare - AI-Powered Mental Health Care Platform
 
-A modern, production-ready React Native authentication system built with Expo, Firebase Authentication, and Firestore database.
+A modern, production-ready React Native mental health app with authentication, AI chat support, and Firebase integration.
 
 ## Features
 
@@ -16,10 +16,20 @@ A modern, production-ready React Native authentication system built with Expo, F
 - Persistent user sessions with AsyncStorage
 - Comprehensive error handling
 
+🤖 **AI Chat Assistant** (New!)
+- OpenAI-powered mental health support
+- Secure backend (API key protected)
+- Firestore message history
+- Real-time typing indicator
+- WhatsApp-style UI with GiftedChat
+- CBT-based responses
+- Full conversation history saved
+
 💾 **Data Management**
 - Firestore database for user data storage
 - User profile information (name, email, creation date)
 - Automatic session persistence
+- Chat history storage and retrieval
 
 ✅ **Form Validation**
 - Email format validation
@@ -33,6 +43,7 @@ A modern, production-ready React Native authentication system built with Expo, F
 - User-friendly error messages
 - Protected routes based on authentication state
 - Smooth navigation transitions
+- AI chat accessible from profile screen
 
 ## Project Structure
 
@@ -121,6 +132,39 @@ This will start the Expo development server. You can then:
 - Press 'i' for iOS simulator
 - Press 'a' for Android emulator
 - Scan the QR code with Expo Go app on physical device
+
+### Step 4: Setup AI Chat Backend (Optional but Recommended)
+
+For full AI chat functionality:
+
+1. **Get OpenAI API Key:**
+   - Go to https://platform.openai.com/api-keys
+   - Create new secret key
+   - Copy the key
+
+2. **Setup Backend (Node.js):**
+   ```bash
+   cd backend
+   npm install
+   cp .env.example .env
+   # Edit .env and add your OpenAI API key
+   npm start
+   ```
+
+3. **Update Backend URL in Frontend:**
+   - Open `services/apiService.js`
+   - Change `API_BASE_URL` to your backend server IP/URL
+   ```javascript
+   const API_BASE_URL = 'http://192.168.1.52:5000'; // Your machine IP
+   ```
+
+4. **Test the Chat:**
+   - Sign in to the app
+   - Go to Profile
+   - Click "Talk to AI Support Assistant"
+   - Send a message and chat with AI!
+
+📖 **Full Setup Guide:** See [CHAT_SYSTEM.md](./CHAT_SYSTEM.md) for detailed backend configuration and deployment options.
 
 ## Key Components
 

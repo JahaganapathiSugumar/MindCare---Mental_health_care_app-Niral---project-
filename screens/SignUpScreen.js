@@ -47,14 +47,19 @@ const SignUpScreen = ({ navigation }) => {
       // Ensure auth is initialized before attempting to sign up
       let auth;
       try {
+        console.log('[SignUp] Initializing auth...');
         auth = await ensureAuthInitialized();
+        console.log('[SignUp] Auth initialized successfully');
       } catch (authError) {
         // Auth failed to initialize - this can happen due to React Native timing issues
         console.error('[SignUp] Auth initialization error:', authError.message);
         Alert.alert(
-          'Connection Issue',
-          'Firebase is not ready yet. Please wait a moment and try again.',
-          [{ text: 'OK' }]
+          'Firebase Connection Error',
+          'Unable to connect to Firebase Auth. Please check:\n\n1. Your internet connection\n2. Firebase is properly configured\n3. Try closing and reopening the app',
+          [
+            { text: 'OK' },
+            { text: 'Retry', onPress: () => handleSignUp() }
+          ]
         );
         setLoading(false);
         return;
@@ -62,8 +67,21 @@ const SignUpScreen = ({ navigation }) => {
       
       const { db } = getFirebaseInstance();
       
-      if (!auth || !db) {
-        Alert.alert('Error', 'Firebase not initialized properly. Please try again.');
+      if (!auth) {
+        Alert.alert(
+          'Firebase Not Ready',
+          'Authentication is not yet available. Please try again in a moment.',
+          [
+            { text: 'OK' },
+            { text: 'Retry', onPress: () => handleSignUp() }
+          ]
+        );
+        setLoading(false);
+        return;
+      }
+
+      if (!db) {
+        Alert.alert('Error', 'Firestore not initialized. Please try again.');
         setLoading(false);
         return;
       }
@@ -94,18 +112,15 @@ const SignUpScreen = ({ navigation }) => {
       setPassword('');
       setConfirmPassword('');
 
-      // Navigate to Home directly after signup
-      Alert.alert('Success', 'Account created successfully!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.replace('Home'),
-        },
-      ]);
+      Alert.alert('Success', 'Account created successfully!');
     } catch (error) {
       let errorMessage = 'Please try again';
+      const isKnownConfigIssue = error.code === 'auth/configuration-not-found';
       
       if (error.message && error.message.includes('Component auth has not been registered')) {
         errorMessage = 'Firebase is initializing. Please try again in a moment.';
+      } else if (isKnownConfigIssue) {
+        errorMessage = 'Authentication is not fully configured for this Firebase project. In Firebase Console, enable Authentication and turn on Email/Password sign-in, then try again.';
       } else if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'Email already in use';
       } else if (error.code === 'auth/weak-password') {
@@ -116,7 +131,11 @@ const SignUpScreen = ({ navigation }) => {
         errorMessage = 'Email/password sign up is not enabled';
       }
       
-      console.error('[SignUp] Sign up error:', error);
+      if (isKnownConfigIssue) {
+        console.warn('[SignUp] Firebase Auth configuration not found. Enable Email/Password in Firebase Console.');
+      } else {
+        console.error('[SignUp] Sign up error:', error);
+      }
       Alert.alert('Sign Up Failed', errorMessage);
     } finally {
       setLoading(false);
@@ -134,7 +153,7 @@ const SignUpScreen = ({ navigation }) => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logo}>🧠 MindCare</Text>
+          <Text style={styles.logo}>MindCare</Text>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>
             Join us on your mental wellness journey

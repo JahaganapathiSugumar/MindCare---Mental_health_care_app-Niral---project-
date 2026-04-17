@@ -39,22 +39,34 @@ const SignInScreen = ({ navigation }) => {
       // Ensure auth is initialized before attempting to sign in
       let auth;
       try {
+        console.log('[SignIn] Initializing auth...');
         auth = await ensureAuthInitialized();
+        console.log('[SignIn] Auth initialized successfully');
       } catch (authError) {
         // Auth failed to initialize
         console.error('[SignIn] Auth initialization error:', authError.message);
         
         Alert.alert(
-          'Firebase Not Available',
-          'Firebase Auth is not available in Expo Go.\n\nTry building a native development build:\n\nnpm install -g expo-dev-client\nexpo build\n\nOr check your internet connection and try again.',
-          [{ text: 'OK' }]
+          'Firebase Connection Error',
+          'Unable to connect to Firebase Auth. Please check:\n\n1. Your internet connection\n2. Firebase is properly configured\n3. Try closing and reopening the app\n\nOr build a native development build for better compatibility.',
+          [
+            { text: 'OK' },
+            { text: 'Retry', onPress: () => handleSignIn() }
+          ]
         );
         setLoading(false);
         return;
       }
       
       if (!auth) {
-        Alert.alert('Error', 'Firebase auth is not available.');
+        Alert.alert(
+          'Firebase Not Ready',
+          'Authentication is not yet available. Please try again in a moment.',
+          [
+            { text: 'OK' },
+            { text: 'Retry', onPress: () => handleSignIn() }
+          ]
+        );
         setLoading(false);
         return;
       }
@@ -67,18 +79,18 @@ const SignInScreen = ({ navigation }) => {
       );
 
       console.log('[SignIn] User signed in successfully');
-      
-      // Navigate to Home screen
-      navigation.replace('Home');
 
       // Reset form
       setEmail('');
       setPassword('');
     } catch (error) {
       let errorMessage = 'Please try again';
+      const isKnownConfigIssue = error.code === 'auth/configuration-not-found';
       
       if (error.message && error.message.includes('Component auth has not been registered')) {
-        errorMessage = 'Firebase is not ready. Please try again in a moment.';
+        errorMessage = 'Firebase is not ready. Please try again.';
+      } else if (isKnownConfigIssue) {
+        errorMessage = 'Authentication is not fully configured for this Firebase project. In Firebase Console, enable Authentication and turn on Email/Password sign-in, then try again.';
       } else if (error.code === 'auth/user-not-found') {
         errorMessage = 'User not found. Please sign up first.';
       } else if (error.code === 'auth/wrong-password') {
@@ -91,7 +103,11 @@ const SignInScreen = ({ navigation }) => {
         errorMessage = 'This account has been disabled';
       }
       
-      console.error('[SignIn] Sign in error:', error);
+      if (isKnownConfigIssue) {
+        console.warn('[SignIn] Firebase Auth configuration not found. Enable Email/Password in Firebase Console.');
+      } else {
+        console.error('[SignIn] Sign in error:', error);
+      }
       Alert.alert('Sign In Failed', errorMessage);
     } finally {
       setLoading(false);

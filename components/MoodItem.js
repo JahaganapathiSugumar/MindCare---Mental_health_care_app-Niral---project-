@@ -1,0 +1,73 @@
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+const moodToEmoji = (mood) => {
+  const normalized = String(mood || '').toLowerCase();
+
+  if (normalized.includes('happy') || normalized.includes('great') || normalized.includes('joy')) return '😊';
+  if (normalized.includes('calm') || normalized.includes('peace')) return '😌';
+  if (normalized.includes('sad') || normalized.includes('down')) return '😔';
+  if (normalized.includes('angry') || normalized.includes('stress')) return '😣';
+  if (normalized.includes('anx')) return '😟';
+  return '🙂';
+};
+
+const MoodItem = ({ mood, createdAt }) => {
+  const displayDate = createdAt
+    ? new Date(createdAt).toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : 'Unknown date';
+
+  return (
+    <View style={styles.row}>
+      <View style={styles.moodPill}>
+        <Text style={styles.emoji}>{moodToEmoji(mood)}</Text>
+        <Text style={styles.moodText}>{mood || 'Unknown mood'}</Text>
+      </View>
+      <Text style={styles.dateText}>{displayDate}</Text>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EAF2F8',
+  },
+  moodPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F8FF',
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    maxWidth: '62%',
+  },
+  emoji: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  moodText: {
+    fontSize: 13,
+    color: '#244B67',
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#6A879D',
+    marginLeft: 10,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+});
+
+export default MoodItem;

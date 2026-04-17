@@ -14,17 +14,39 @@ export const validatePasswordMatch = (password, confirmPassword) => {
   return password === confirmPassword;
 };
 
-// Validate full name - at least 2 characters
+// Validate full name with a user-friendly error string for UI forms.
+export const getFullNameValidationError = (name) => {
+  const trimmed = (name || '').trim();
+
+  if (!trimmed) {
+    return 'Full name is required';
+  }
+
+  if (trimmed.length < 2) {
+    return 'Name must be at least 2 characters';
+  }
+
+  // Ignore spaces and punctuation commonly used in names when checking numeric-only input.
+  const normalized = trimmed.replace(/[\s'\-.]/g, '');
+  if (normalized.length > 0 && /^\d+$/.test(normalized)) {
+    return 'Name cannot contain only numbers';
+  }
+
+  return '';
+};
+
+// Validate full name using the detailed validator above.
 export const validateFullName = (name) => {
-  return name.trim().length >= 2;
+  return !getFullNameValidationError(name);
 };
 
 // Validate all sign up fields
 export const validateSignUp = (fullName, email, password, confirmPassword) => {
   const errors = {};
 
-  if (!validateFullName(fullName)) {
-    errors.fullName = 'Name must be at least 2 characters';
+  const fullNameError = getFullNameValidationError(fullName);
+  if (fullNameError) {
+    errors.fullName = fullNameError;
   }
 
   if (!email.trim()) {
