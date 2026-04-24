@@ -14,8 +14,10 @@ import { getFirebaseInstance, ensureAuthInitialized } from '../firebase';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import { validateSignIn } from '../utils/validation';
+import { useTranslation } from 'react-i18next';
 
 const SignInScreen = ({ navigation }) => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,11 +49,11 @@ const SignInScreen = ({ navigation }) => {
         console.error('[SignIn] Auth initialization error:', authError.message);
         
         Alert.alert(
-          'Firebase Connection Error',
-          'Unable to connect to Firebase Auth. Please check:\n\n1. Your internet connection\n2. Firebase is properly configured\n3. Try closing and reopening the app\n\nOr build a native development build for better compatibility.',
+          t('auth.firebaseConnectionErrorTitle'),
+          t('auth.firebaseConnectionErrorBody'),
           [
-            { text: 'OK' },
-            { text: 'Retry', onPress: () => handleSignIn() }
+            { text: t('common.ok') },
+            { text: t('common.retry'), onPress: () => handleSignIn() }
           ]
         );
         setLoading(false);
@@ -60,11 +62,11 @@ const SignInScreen = ({ navigation }) => {
       
       if (!auth) {
         Alert.alert(
-          'Firebase Not Ready',
-          'Authentication is not yet available. Please try again in a moment.',
+          t('auth.firebaseNotReadyTitle'),
+          t('auth.firebaseNotReadyBody'),
           [
-            { text: 'OK' },
-            { text: 'Retry', onPress: () => handleSignIn() }
+            { text: t('common.ok') },
+            { text: t('common.retry'), onPress: () => handleSignIn() }
           ]
         );
         setLoading(false);
@@ -84,23 +86,23 @@ const SignInScreen = ({ navigation }) => {
       setEmail('');
       setPassword('');
     } catch (error) {
-      let errorMessage = 'Please try again';
+      let errorMessage = t('auth.genericError', { defaultValue: 'Please try again' });
       const isKnownConfigIssue = error.code === 'auth/configuration-not-found';
       
       if (error.message && error.message.includes('Component auth has not been registered')) {
-        errorMessage = 'Firebase is not ready. Please try again.';
+        errorMessage = t('auth.firebaseNotReadyBody');
       } else if (isKnownConfigIssue) {
-        errorMessage = 'Authentication is not fully configured for this Firebase project. In Firebase Console, enable Authentication and turn on Email/Password sign-in, then try again.';
+        errorMessage = t('auth.configurationMissing', { defaultValue: 'Authentication is not fully configured for this Firebase project. Enable Email/Password sign-in and try again.' });
       } else if (error.code === 'auth/user-not-found') {
-        errorMessage = 'User not found. Please sign up first.';
+        errorMessage = t('auth.userNotFound', { defaultValue: 'User not found. Please sign up first.' });
       } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password';
+        errorMessage = t('auth.incorrectPassword', { defaultValue: 'Incorrect password' });
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address';
+        errorMessage = t('auth.invalidEmail', { defaultValue: 'Invalid email address' });
       } else if (error.code === 'auth/invalid-credential') {
-        errorMessage = 'Invalid email or password';
+        errorMessage = t('auth.invalidCredential', { defaultValue: 'Invalid email or password' });
       } else if (error.code === 'auth/user-disabled') {
-        errorMessage = 'This account has been disabled';
+        errorMessage = t('auth.userDisabled', { defaultValue: 'This account has been disabled' });
       }
       
       if (isKnownConfigIssue) {
@@ -108,7 +110,7 @@ const SignInScreen = ({ navigation }) => {
       } else {
         console.error('[SignIn] Sign in error:', error);
       }
-      Alert.alert('Sign In Failed', errorMessage);
+      Alert.alert(t('auth.signInFailed'), errorMessage);
     } finally {
       setLoading(false);
     }
@@ -126,16 +128,16 @@ const SignInScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.logo}>MindCare</Text>
-          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.title}>{t('auth.welcomeBack')}</Text>
           <Text style={styles.subtitle}>
-            Continue your mental wellness journey
+            {t('auth.continueJourney')}
           </Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <CustomInput
-            label="Email"
+            label={t('auth.email')}
             placeholder="you@example.com"
             value={email}
             onChangeText={setEmail}
@@ -144,8 +146,8 @@ const SignInScreen = ({ navigation }) => {
           />
 
           <CustomInput
-            label="Password"
-            placeholder="Enter your password"
+            label={t('auth.password')}
+            placeholder={t('auth.password')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -154,12 +156,12 @@ const SignInScreen = ({ navigation }) => {
 
           {/* Forgot Password Link */}
           <TouchableOpacity style={styles.forgotPasswordContainer}>
-            <Text style={styles.forgotPassword}>Forgot Password?</Text>
+            <Text style={styles.forgotPassword}>{t('auth.forgotPassword')}</Text>
           </TouchableOpacity>
 
           {/* Sign In Button */}
           <CustomButton
-            title="Sign In"
+            title={t('auth.signIn')}
             onPress={handleSignIn}
             loading={loading}
             disabled={loading}
@@ -168,9 +170,9 @@ const SignInScreen = ({ navigation }) => {
 
         {/* Sign Up Link */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
+          <Text style={styles.footerText}>{t('auth.noAccount')} </Text>
           <TouchableOpacity onPress={() => navigation.replace('SignUp')}>
-            <Text style={styles.link}>Sign Up</Text>
+            <Text style={styles.link}>{t('auth.signUp')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

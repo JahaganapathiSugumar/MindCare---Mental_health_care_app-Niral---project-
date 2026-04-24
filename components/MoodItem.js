@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 const moodToEmoji = (mood) => {
   const normalized = String(mood || '').toLowerCase();
@@ -13,6 +15,8 @@ const moodToEmoji = (mood) => {
 };
 
 const MoodItem = ({ mood, createdAt }) => {
+  const { t } = useTranslation();
+  const { theme, isDark } = useTheme();
   const displayDate = createdAt
     ? new Date(createdAt).toLocaleString(undefined, {
         month: 'short',
@@ -20,15 +24,18 @@ const MoodItem = ({ mood, createdAt }) => {
         hour: 'numeric',
         minute: '2-digit',
       })
-    : 'Unknown date';
+    : t('profile.notAvailable');
+
+  const moodKey = `moods.${String(mood || '').toLowerCase()}`;
+  const resolvedMoodLabel = t(moodKey, { defaultValue: mood || t('moods.unknown') });
 
   return (
-    <View style={styles.row}>
-      <View style={styles.moodPill}>
+    <View style={[styles.row, { borderBottomColor: theme.border }]}>
+      <View style={[styles.moodPill, { backgroundColor: isDark ? '#252B33' : '#F1F8FF' }]}>
         <Text style={styles.emoji}>{moodToEmoji(mood)}</Text>
-        <Text style={styles.moodText}>{mood || 'Unknown mood'}</Text>
+        <Text style={[styles.moodText, { color: theme.text }]}>{resolvedMoodLabel}</Text>
       </View>
-      <Text style={styles.dateText}>{displayDate}</Text>
+      <Text style={[styles.dateText, { color: theme.mutedText }]}>{displayDate}</Text>
     </View>
   );
 };

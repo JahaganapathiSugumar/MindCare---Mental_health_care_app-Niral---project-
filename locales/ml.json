@@ -1,0 +1,61 @@
+{
+  "appName": "MindCare",
+  "language": {
+    "title": "ഭാഷ തിരഞ്ഞെടുക്കുക",
+    "subtitle": "എല്ലാ ഉള്ളടക്കവും നിങ്ങൾ തിരഞ്ഞെടുത്ത ഭാഷയിൽ പ്രദർശിപ്പിക്കും.",
+    "continue": "തുടരുക",
+    "change": "ഭാഷ മാറ്റുക",
+    "current": "നിലവിലെ ഭാഷ"
+  },
+  "auth": {
+    "welcomeBack": "വീണ്ടും സ്വാഗതം",
+    "continueJourney": "നിങ്ങളുടെ മാനസികാരോഗ്യ യാത്ര തുടരുക",
+    "createAccount": "അക്കൗണ്ട് സൃഷ്ടിക്കുക",
+    "joinJourney": "ഞങ്ങളുടെ മാനസികാരോഗ്യ യാത്രയിൽ ചേരുക",
+    "email": "ഇമെയിൽ",
+    "password": "പാസ്വേഡ്",
+    "confirmPassword": "പാസ്വേഡ് സ്ഥിരീകരിക്കുക",
+    "fullName": "പൂർണ്ണനാമം",
+    "forgotPassword": "പാസ്വേഡ് മറന്നോ?",
+    "signIn": "സൈൻ ഇൻ",
+    "signUp": "സൈൻ അപ്പ്",
+    "createAccountButton": "അക്കൗണ്ട് സൃഷ്ടിക്കുക"
+  },
+  "home": {
+    "quickActions": "വേഗ പ്രവർത്തനങ്ങൾ",
+    "startChat": "ചാറ്റ് ആരംഭിക്കുക",
+    "moodInsights": "മൂഡ് ഇൻസൈറ്റുകൾ",
+    "dailyTip": "ദിനസൂചന"
+  },
+  "chat": {
+    "title": "AI പിന്തുണ സഹായി",
+    "subtitle": "നിങ്ങളുടെ ദൈനംദിന ചെക്ക്-ഇൻക്കുള്ള സ്വകാര്യ ഇടം",
+    "thinking": "AI ചിന്തിക്കുന്നു...",
+    "inputPlaceholder": "നിങ്ങളുടെ സന്ദേശം ടൈപ്പ് ചെയ്യൂ..."
+  },
+  "mood": {
+    "title": "AI മൂഡ് ഇൻസൈറ്റുകൾ",
+    "subtitle": "മൂഡ് AI ചാറ്റ് സന്ദേശങ്ങളിൽ നിന്നാണ് കണ്ടെത്തുന്നത്.",
+    "startAIChat": "AI ചാറ്റ് ആരംഭിക്കുക"
+  },
+  "profile": {
+    "profileInfo": "പ്രൊഫൈൽ വിവരം",
+    "editProfile": "പ്രൊഫൈൽ തിരുത്തുക",
+    "notifications": "അറിയിപ്പുകൾ",
+    "logout": "ലോഗ്ഔട്ട്",
+    "changePhoto": "ഫോട്ടോ മാറ്റുക"
+  },
+  "onboarding": {
+    "skip": "സ്കിപ്പ്",
+    "next": "അടുത്തത്",
+    "getStarted": "തുടങ്ങുക"
+  },
+  "moods": {
+    "happy": "സന്തോഷം",
+    "sad": "ദുഃഖം",
+    "neutral": "സാധാരണം",
+    "anxious": "ഉത്കണ്ഠ",
+    "unknown": "അറിയാത്ത മൂഡ്",
+    "mood": "മൂഡ്"
+  }
+}

@@ -1,5 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, Text, StyleSheet, View } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 
 const getInitials = (name, email) => {
   if (name && name.trim().length > 0) {
@@ -15,17 +17,43 @@ const getInitials = (name, email) => {
   return 'U';
 };
 
-const ProfileHeader = ({ fullName, email }) => {
+const ProfileHeader = ({ fullName, email, photoURL, onPhotoPress, photoLoading = false }) => {
+  const { t } = useTranslation();
+  const { theme, isDark } = useTheme();
   const initials = getInitials(fullName, email);
+  const [hasImageError, setHasImageError] = useState(false);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [photoURL]);
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initials}</Text>
+      <View style={[styles.avatar, { backgroundColor: isDark ? '#2A2A2A' : '#DDF0FF', borderColor: theme.card }]}>
+        {photoURL && !hasImageError ? (
+          <Image
+            source={{ uri: photoURL }}
+            style={styles.avatarImage}
+            onError={(event) => {
+              console.warn('[ProfileHeader] Profile photo load failed:', photoURL, event?.nativeEvent?.error || 'Unknown image error');
+              setHasImageError(true);
+            }}
+          />
+        ) : (
+          <Text style={styles.avatarText}>{initials}</Text>
+        )}
       </View>
 
-      <Text style={styles.nameText}>{fullName || 'MindCare User'}</Text>
-      <Text style={styles.emailText}>{email || 'No email available'}</Text>
+      <Pressable style={[styles.changePhotoButton, { backgroundColor: isDark ? '#2A2F35' : '#E6F3FF' }]} onPress={onPhotoPress} disabled={photoLoading}>
+        {photoLoading ? (
+          <ActivityIndicator size="small" color={theme.primary} />
+        ) : (
+          <Text style={[styles.changePhotoText, { color: theme.primary }]}>{t('profile.changePhoto')}</Text>
+        )}
+      </Pressable>
+
+      <Text style={[styles.nameText, { color: theme.text }]}>{fullName || t('profile.mindcareUser')}</Text>
+      <Text style={[styles.emailText, { color: theme.mutedText }]}>{email || t('profile.noEmailAvailable')}</Text>
     </View>
   );
 };
@@ -52,11 +80,28 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
     marginBottom: 12,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     fontSize: 30,
     fontWeight: '700',
     color: '#2B5F87',
+  },
+  changePhotoButton: {
+    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#E6F3FF',
+  },
+  changePhotoText: {
+    color: '#2A7FBF',
+    fontWeight: '600',
+    fontSize: 13,
   },
   nameText: {
     fontSize: 22,

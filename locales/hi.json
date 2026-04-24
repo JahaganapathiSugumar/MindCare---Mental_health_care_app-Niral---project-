@@ -1,0 +1,61 @@
+{
+  "appName": "MindCare",
+  "language": {
+    "title": "अपनी भाषा चुनें",
+    "subtitle": "सारा कंटेंट आपकी चुनी हुई भाषा में दिखाया जाएगा।",
+    "continue": "जारी रखें",
+    "change": "भाषा बदलें",
+    "current": "वर्तमान भाषा"
+  },
+  "auth": {
+    "welcomeBack": "वापसी पर स्वागत है",
+    "continueJourney": "अपनी मानसिक स्वास्थ्य यात्रा जारी रखें",
+    "createAccount": "खाता बनाएं",
+    "joinJourney": "हमारी मानसिक स्वास्थ्य यात्रा में शामिल हों",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "confirmPassword": "पासवर्ड पुष्टि करें",
+    "fullName": "पूरा नाम",
+    "forgotPassword": "पासवर्ड भूल गए?",
+    "signIn": "साइन इन",
+    "signUp": "साइन अप",
+    "createAccountButton": "खाता बनाएं"
+  },
+  "home": {
+    "quickActions": "त्वरित क्रियाएं",
+    "startChat": "चैट शुरू करें",
+    "moodInsights": "मूड इनसाइट्स",
+    "dailyTip": "आज की टिप"
+  },
+  "chat": {
+    "title": "AI सपोर्ट सहायक",
+    "subtitle": "आपके दैनिक चेक-इन के लिए निजी स्थान",
+    "thinking": "AI सोच रहा है...",
+    "inputPlaceholder": "अपना संदेश लिखें..."
+  },
+  "mood": {
+    "title": "AI मूड इनसाइट्स",
+    "subtitle": "मूड केवल AI चैट संदेशों से पहचाना जाता है।",
+    "startAIChat": "AI चैट शुरू करें"
+  },
+  "profile": {
+    "profileInfo": "प्रोफ़ाइल जानकारी",
+    "editProfile": "प्रोफ़ाइल संपादित करें",
+    "notifications": "सूचनाएं",
+    "logout": "लॉगआउट",
+    "changePhoto": "फोटो बदलें"
+  },
+  "onboarding": {
+    "skip": "छोड़ें",
+    "next": "अगला",
+    "getStarted": "शुरू करें"
+  },
+  "moods": {
+    "happy": "खुश",
+    "sad": "उदास",
+    "neutral": "सामान्य",
+    "anxious": "चिंतित",
+    "unknown": "अज्ञात मूड",
+    "mood": "मूड"
+  }
+}

@@ -8,13 +8,40 @@ import SignUpScreen from '../screens/SignUpScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ChatScreen from '../screens/ChatScreen';
+import MoodScreen from '../screens/MoodScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
+import LanguageSelectionScreen from '../screens/LanguageSelectionScreen';
+import { initializeProactiveNotifications } from '../services/notifications';
+import { getHasSeenOnboarding } from '../utils/storage';
+import { useLanguage } from '../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 
 const Stack = createStackNavigator();
 
 const RootNavigator = () => {
+  const { hasSelectedLanguage, isLanguageReady, language } = useLanguage();
+  const { t } = useTranslation();
   const [user, setUser] = useState(undefined);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+  const [onboardingLoading, setOnboardingLoading] = useState(true);
+
+  useEffect(() => {
+    const bootstrapOnboardingState = async () => {
+      try {
+        const seen = await getHasSeenOnboarding();
+        setHasSeenOnboarding(seen);
+      } catch (error) {
+        console.warn('[RootNavigator] Failed onboarding state read:', error?.message || error);
+        setHasSeenOnboarding(false);
+      } finally {
+        setOnboardingLoading(false);
+      }
+    };
+
+    bootstrapOnboardingState();
+  }, []);
 
   useEffect(() => {
     const setupAuthListener = async () => {
@@ -90,14 +117,38 @@ const RootNavigator = () => {
     };
   }, []);
 
-  if (loading) {
+  useEffect(() => {
+    const bootstrapNotifications = async () => {
+      if (!user?.uid) {
+        return;
+      }
+
+      try {
+        await initializeProactiveNotifications({
+          userId: user.uid,
+          userName: user.displayName || user.email?.split('@')?.[0] || t('profile.mindcareUser'),
+          language,
+        });
+      } catch (error) {
+        console.warn('[RootNavigator] Notification bootstrap failed:', error.message || error);
+      }
+    };
+
+    bootstrapNotifications();
+  }, [language, t, user?.uid, user?.displayName, user?.email]);
+
+  if (loading || onboardingLoading || !isLanguageReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' }}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={{ marginTop: 10, color: '#666', fontSize: 14 }}>Initializing Firebase...</Text>
+        <Text style={{ marginTop: 10, color: '#666', fontSize: 14 }}>{t('common.loading')}</Text>
       </View>
     );
   }
+
+  const initialRouteName = user
+    ? (!hasSelectedLanguage ? 'LanguageSelection' : (hasSeenOnboarding ? 'Home' : 'Onboarding'))
+    : 'SignIn';
 
   return (
     <NavigationContainer>
@@ -107,13 +158,32 @@ const RootNavigator = () => {
           cardStyle: { backgroundColor: '#f8f9fa' },
           animationEnabled: true,
         }}
-        initialRouteName={user ? 'Home' : 'SignIn'}
+        initialRouteName={initialRouteName}
       >
         {user ? (
           <>
-            <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="Chat" component={ChatScreen} />
+            {!hasSelectedLanguage ? (
+              <Stack.Screen
+                name="LanguageSelection"
+                component={LanguageSelectionScreen}
+                initialParams={{
+                  onCompleteRoute: hasSeenOnboarding ? 'Home' : 'Onboarding',
+                }}
+              />
+            ) : null}
+            {hasSelectedLanguage && !hasSeenOnboarding ? (
+              <Stack.Screen
+                name="Onboarding"
+                component={OnboardingScreen}
+                initialParams={{
+                  userName: user.displayName || user.email?.split('@')?.[0] || t('profile.mindcareUser'),
+                }}
+              />
+            ) : null}
+            {hasSelectedLanguage ? <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} /> : null}
+            {hasSelectedLanguage ? <Stack.Screen name="Profile" component={ProfileScreen} /> : null}
+            {hasSelectedLanguage ? <Stack.Screen name="Chat" component={ChatScreen} /> : null}
+            {hasSelectedLanguage ? <Stack.Screen name="Mood" component={MoodScreen} /> : null}
           </>
         ) : (
           <>

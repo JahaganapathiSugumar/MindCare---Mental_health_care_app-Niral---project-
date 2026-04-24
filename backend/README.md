@@ -1,10 +1,10 @@
 # AI Chat Backend - Setup & Deployment Guide
 
-This is the secure backend server for the Mental Health AI Chat system. It handles all OpenAI API calls and Firestore integration.
+This is the secure backend server for the Mental Health AI Chat system. It handles all LLM API calls (Groq/OpenAI compatible) and Firestore integration.
 
 ## ⚠️ Security First
 
-- **NEVER expose your OpenAI API key in the frontend**
+- **NEVER expose your API key in the frontend**
 - All API calls go through this backend
 - The API key is stored only in the `.env` file on the server
 - Frontend only knows the backend URL
@@ -12,7 +12,8 @@ This is the secure backend server for the Mental Health AI Chat system. It handl
 ## Prerequisites
 
 - **Node.js 14+** (for Node.js backend) OR **Python 3.8+** (for Flask backend)
-- **OpenAI API key** from https://platform.openai.com/api-keys
+- **Groq API key** from https://console.groq.com/keys (recommended)
+- Or OpenAI API key from https://platform.openai.com/api-keys
 
 ## Quick Start (Node.js/Express)
 
@@ -25,15 +26,17 @@ npm install
 
 ### 2. Create `.env` File
 
-Copy `.env.example` to `.env` and add your OpenAI API key:
+Create `.env` and add your Groq API key:
 
 ```bash
-cp .env.example .env
+copy .env.example .env
 ```
 
 Edit `.env`:
 ```
-OPENAI_API_KEY=sk-your-actual-api-key-here
+AI_PROVIDER=groq
+GROQ_API_KEY=gsk_your_actual_groq_key_here
+GROQ_MODEL=llama-3.1-8b-instant
 PORT=5000
 ```
 
@@ -159,7 +162,11 @@ Content-Type: application/json
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `OPENAI_API_KEY` | ✅ Yes | Your OpenAI API key |
+| `AI_PROVIDER` | ❌ No | `groq` or `openai` (defaults to `groq` if `GROQ_API_KEY` exists) |
+| `GROQ_API_KEY` | ✅ Yes (for Groq) | Your Groq API key |
+| `GROQ_MODEL` | ❌ No | Groq model name (default: `llama-3.1-8b-instant`) |
+| `OPENAI_API_KEY` | ✅ Yes (for OpenAI) | Your OpenAI API key |
+| `AI_MODEL` | ❌ No | Override model for either provider |
 | `PORT` | ❌ No | Server port (default: 5000) |
 | `FRONTEND_URL` | ❌ No | Frontend URL for CORS |
 

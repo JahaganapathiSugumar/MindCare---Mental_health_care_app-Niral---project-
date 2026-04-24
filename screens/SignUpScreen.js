@@ -15,8 +15,12 @@ import { getFirebaseInstance, ensureAuthInitialized } from '../firebase';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import { validateSignUp } from '../utils/validation';
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../context/LanguageContext';
 
 const SignUpScreen = ({ navigation }) => {
+  const { t } = useTranslation();
+  const { language } = useLanguage();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,11 +58,11 @@ const SignUpScreen = ({ navigation }) => {
         // Auth failed to initialize - this can happen due to React Native timing issues
         console.error('[SignUp] Auth initialization error:', authError.message);
         Alert.alert(
-          'Firebase Connection Error',
-          'Unable to connect to Firebase Auth. Please check:\n\n1. Your internet connection\n2. Firebase is properly configured\n3. Try closing and reopening the app',
+          t('auth.firebaseConnectionErrorTitle'),
+          t('auth.firebaseConnectionErrorBody'),
           [
-            { text: 'OK' },
-            { text: 'Retry', onPress: () => handleSignUp() }
+            { text: t('common.ok') },
+            { text: t('common.retry'), onPress: () => handleSignUp() }
           ]
         );
         setLoading(false);
@@ -69,11 +73,11 @@ const SignUpScreen = ({ navigation }) => {
       
       if (!auth) {
         Alert.alert(
-          'Firebase Not Ready',
-          'Authentication is not yet available. Please try again in a moment.',
+          t('auth.firebaseNotReadyTitle'),
+          t('auth.firebaseNotReadyBody'),
           [
-            { text: 'OK' },
-            { text: 'Retry', onPress: () => handleSignUp() }
+            { text: t('common.ok') },
+            { text: t('common.retry'), onPress: () => handleSignUp() }
           ]
         );
         setLoading(false);
@@ -81,7 +85,7 @@ const SignUpScreen = ({ navigation }) => {
       }
 
       if (!db) {
-        Alert.alert('Error', 'Firestore not initialized. Please try again.');
+        Alert.alert(t('auth.genericError', { defaultValue: 'Error' }), t('auth.firestoreNotReady', { defaultValue: 'Firestore not initialized. Please try again.' }));
         setLoading(false);
         return;
       }
@@ -100,6 +104,7 @@ const SignUpScreen = ({ navigation }) => {
         uid: user.uid,
         fullName: fullName.trim(),
         email: email.trim(),
+        preferredLanguage: language || 'en',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -112,23 +117,23 @@ const SignUpScreen = ({ navigation }) => {
       setPassword('');
       setConfirmPassword('');
 
-      Alert.alert('Success', 'Account created successfully!');
+      Alert.alert(t('auth.signUpSuccessTitle'), t('auth.signUpSuccessBody'));
     } catch (error) {
-      let errorMessage = 'Please try again';
+      let errorMessage = t('auth.genericError', { defaultValue: 'Please try again' });
       const isKnownConfigIssue = error.code === 'auth/configuration-not-found';
       
       if (error.message && error.message.includes('Component auth has not been registered')) {
-        errorMessage = 'Firebase is initializing. Please try again in a moment.';
+        errorMessage = t('auth.firebaseNotReadyBody');
       } else if (isKnownConfigIssue) {
-        errorMessage = 'Authentication is not fully configured for this Firebase project. In Firebase Console, enable Authentication and turn on Email/Password sign-in, then try again.';
+        errorMessage = t('auth.configurationMissing', { defaultValue: 'Authentication is not fully configured for this Firebase project. Enable Email/Password sign-in and try again.' });
       } else if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'Email already in use';
+        errorMessage = t('auth.emailInUse', { defaultValue: 'Email already in use' });
       } else if (error.code === 'auth/weak-password') {
-        errorMessage = 'Password is too weak (minimum 6 characters)';
+        errorMessage = t('auth.weakPassword', { defaultValue: 'Password is too weak (minimum 6 characters)' });
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address';
+        errorMessage = t('auth.invalidEmail', { defaultValue: 'Invalid email address' });
       } else if (error.code === 'auth/operation-not-allowed') {
-        errorMessage = 'Email/password sign up is not enabled';
+        errorMessage = t('auth.operationNotAllowed', { defaultValue: 'Email/password sign up is not enabled' });
       }
       
       if (isKnownConfigIssue) {
@@ -136,7 +141,7 @@ const SignUpScreen = ({ navigation }) => {
       } else {
         console.error('[SignUp] Sign up error:', error);
       }
-      Alert.alert('Sign Up Failed', errorMessage);
+      Alert.alert(t('auth.signUpFailed'), errorMessage);
     } finally {
       setLoading(false);
     }
@@ -154,16 +159,16 @@ const SignUpScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.logo}>MindCare</Text>
-          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.title}>{t('auth.createAccount')}</Text>
           <Text style={styles.subtitle}>
-            Join us on your mental wellness journey
+            {t('auth.joinJourney')}
           </Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <CustomInput
-            label="Full Name"
+            label={t('auth.fullName')}
             placeholder="John Doe"
             value={fullName}
             onChangeText={setFullName}
@@ -171,7 +176,7 @@ const SignUpScreen = ({ navigation }) => {
           />
 
           <CustomInput
-            label="Email"
+            label={t('auth.email')}
             placeholder="you@example.com"
             value={email}
             onChangeText={setEmail}
@@ -180,7 +185,7 @@ const SignUpScreen = ({ navigation }) => {
           />
 
           <CustomInput
-            label="Password"
+            label={t('auth.password')}
             placeholder="At least 6 characters"
             value={password}
             onChangeText={setPassword}
@@ -189,7 +194,7 @@ const SignUpScreen = ({ navigation }) => {
           />
 
           <CustomInput
-            label="Confirm Password"
+            label={t('auth.confirmPassword')}
             placeholder="Re-enter your password"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
@@ -199,7 +204,7 @@ const SignUpScreen = ({ navigation }) => {
 
           {/* Sign Up Button */}
           <CustomButton
-            title="Create Account"
+            title={t('auth.createAccountButton')}
             onPress={handleSignUp}
             loading={loading}
             disabled={loading}
@@ -208,9 +213,9 @@ const SignUpScreen = ({ navigation }) => {
 
         {/* Sign In Link */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
+          <Text style={styles.footerText}>{t('auth.alreadyAccount')} </Text>
           <TouchableOpacity onPress={() => navigation.replace('SignIn')}>
-            <Text style={styles.link}>Sign In</Text>
+            <Text style={styles.link}>{t('auth.signIn')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

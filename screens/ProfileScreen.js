@@ -1,12 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import {
   ActivityIndicator,
+  Animated,
   Alert,
   Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -16,10 +19,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ProfileHeader from '../components/ProfileHeader';
 import InfoCard from '../components/InfoCard';
 import MoodItem from '../components/MoodItem';
-import { fetchMoodHistory, fetchProfileData, logoutCurrentUser, updateProfileFullName } from '../services/profileService';
+import {
+  fetchMoodHistory,
+  fetchProfileData,
+  logoutCurrentUser,
+  updateNotificationPreference,
+  updateProfileFullName,
+  updateProfilePhoto,
+} from '../services/profileService';
 import { getFullNameValidationError } from '../utils/validation';
+import {
+  cancelMindCareScheduledNotifications,
+  initializeProactiveNotifications,
+} from '../services/notifications';
+import { useTheme } from '../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../context/LanguageContext';
 
 const ProfileScreen = ({ navigation }) => {
+  const { t } = useTranslation();
+  const { language, setLanguage, supportedLanguages, languageMeta } = useLanguage();
+  const { theme, isDark, toggleTheme } = useTheme();
   const [profile, setProfile] = useState(null);
   const [moods, setMoods] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +49,19 @@ const ProfileScreen = ({ navigation }) => {
   const [editName, setEditName] = useState('');
   const [editNameError, setEditNameError] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [updatingPhoto, setUpdatingPhoto] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [updatingNotifications, setUpdatingNotifications] = useState(false);
+  const themeFadeAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    themeFadeAnim.setValue(0.7);
+    Animated.timing(themeFadeAnim, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [isDark, themeFadeAnim]);
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -42,15 +75,16 @@ const ProfileScreen = ({ navigation }) => {
       const moodData = await fetchMoodHistory(profileData.userId);
 
       setProfile(profileData);
+      setNotificationsEnabled(profileData.notificationsEnabled !== false);
       setMoods(moodData);
     } catch (error) {
       console.error('[Profile] Load error:', error.message || error);
-      Alert.alert('Profile Error', error.message || 'Could not load profile data. Please try again.');
+      Alert.alert(t('profile.profileError'), error.message || t('profile.loadFailed', { defaultValue: 'Could not load profile data. Please try again.' }));
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
@@ -74,7 +108,7 @@ const ProfileScreen = ({ navigation }) => {
 
     if (validationMessage) {
       setEditNameError(validationMessage);
-      Alert.alert('Validation', validationMessage);
+      Alert.alert(t('profile.validation'), validationMessage);
       return;
     }
 
@@ -86,10 +120,10 @@ const ProfileScreen = ({ navigation }) => {
         fullName: savedName,
       }));
       setEditVisible(false);
-      Alert.alert('Profile Updated', 'Your name has been updated successfully.');
+      Alert.alert(t('profile.editTitle'), t('profile.profileUpdateSuccess'));
     } catch (error) {
       console.error('[Profile] Update error:', error.message || error);
-      Alert.alert('Update Failed', error.message || 'Could not update your profile.');
+      Alert.alert(t('profile.updateFailed'), error.message || t('profile.updateProfileFailed', { defaultValue: 'Could not update your profile.' }));
     } finally {
       setSavingProfile(false);
     }
@@ -98,10 +132,10 @@ const ProfileScreen = ({ navigation }) => {
   const handleLogout = async () => {
     if (loggingOut) return;
 
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('profile.signOut'), t('profile.confirmSignOut'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Logout',
+        text: t('profile.logout'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -110,7 +144,7 @@ const ProfileScreen = ({ navigation }) => {
             // RootNavigator listens to auth state changes and will navigate to SignIn.
           } catch (error) {
             console.error('[Profile] Logout error:', error.message || error);
-            Alert.alert('Logout Failed', error.message || 'Please try again.');
+            Alert.alert(t('profile.logoutFailed'), error.message || t('auth.genericError', { defaultValue: 'Please try again.' }));
           } finally {
             setLoggingOut(false);
           }
@@ -119,42 +153,194 @@ const ProfileScreen = ({ navigation }) => {
     ]);
   };
 
+  const handleChangePhoto = async () => {
+    if (updatingPhoto) return;
+
+    try {
+      setUpdatingPhoto(true);
+
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(t('profile.permissionRequired'), t('profile.photoPermissionText'));
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaType?.Images || ImagePicker.MediaTypeOptions?.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.4,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const selectedImageUri = result.assets[0].uri;
+      const savedPhotoURL = await updateProfilePhoto(selectedImageUri);
+
+      setProfile((prev) => ({
+        ...(prev || {}),
+        photoURL: savedPhotoURL,
+      }));
+
+      Alert.alert(t('profile.editTitle'), t('profile.profilePhotoUpdateSuccess'));
+    } catch (error) {
+      console.error('[Profile] Photo update error:', error.message || error);
+      Alert.alert(t('profile.updateFailed'), error.message || t('profile.updatePhotoFailed', { defaultValue: 'Could not update profile photo.' }));
+    } finally {
+      setUpdatingPhoto(false);
+    }
+  };
+
+  const handleLanguageChange = async (nextLanguage) => {
+    if (!nextLanguage || nextLanguage === language) {
+      return;
+    }
+
+    try {
+      await setLanguage(nextLanguage);
+      setProfile((prev) => ({
+        ...(prev || {}),
+        preferredLanguage: nextLanguage,
+      }));
+    } catch (error) {
+      console.error('[Profile] Language change error:', error.message || error);
+      Alert.alert(t('profile.updateFailed'), t('language.changeFailed', { defaultValue: 'Could not change language right now.' }));
+    }
+  };
+
+  const handleToggleNotifications = async (enabled) => {
+    if (!profile?.userId || updatingNotifications) {
+      return;
+    }
+
+    const previousValue = notificationsEnabled;
+    setNotificationsEnabled(enabled);
+    setUpdatingNotifications(true);
+
+    try {
+      await updateNotificationPreference(enabled);
+
+      if (enabled) {
+        await initializeProactiveNotifications({
+          userId: profile.userId,
+          userName: profile.fullName || t('profile.mindcareUser'),
+          language,
+          force: true,
+        });
+      } else {
+        await cancelMindCareScheduledNotifications();
+      }
+    } catch (error) {
+      console.error('[Profile] Notification preference error:', error.message || error);
+      setNotificationsEnabled(previousValue);
+      Alert.alert(t('profile.notificationUpdateFailed'), error.message || t('profile.updateNotificationsFailed', { defaultValue: 'Could not update notification settings.' }));
+    } finally {
+      setUpdatingNotifications(false);
+    }
+  };
+
+  const handleToggleDarkMode = async (enabled) => {
+    if (enabled !== isDark) {
+      await toggleTheme();
+    }
+  };
+
+  const handleGoBack = () => {
+    if (navigation?.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate('Home');
+  };
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color="#2A7FBF" />
-        <Text style={styles.loadingText}>Loading your profile...</Text>
+        <Text style={[styles.loadingText, { color: theme.mutedText }]}>{t('profile.loading')}</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.bgCircleTop} />
-      <View style={styles.bgCircleBottom} />
+    <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
+      {!isDark ? <View style={styles.bgCircleTop} /> : null}
+      {!isDark ? <View style={styles.bgCircleBottom} /> : null}
 
-      <ScrollView
+      <Animated.ScrollView
+        style={{ opacity: themeFadeAnim }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#2A7FBF" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={theme.primary} />}
       >
-        <ProfileHeader fullName={profile?.fullName} email={profile?.email} />
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={handleGoBack}
+            style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('profile.goBack')}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.backButtonText, { color: theme.text }]}>← {t('common.back')}</Text>
+          </TouchableOpacity>
+        </View>
 
-        <InfoCard title="Profile Information" actionLabel="Edit Profile" onActionPress={handleEditProfile}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Full Name</Text>
-            <Text style={styles.infoValue}>{profile?.fullName || 'MindCare User'}</Text>
+        <ProfileHeader
+          fullName={profile?.fullName}
+          email={profile?.email}
+          photoURL={profile?.photoURL}
+          onPhotoPress={handleChangePhoto}
+          photoLoading={updatingPhoto}
+        />
+
+        <InfoCard title={t('profile.profileInfo')} actionLabel={t('profile.editProfile')} onActionPress={handleEditProfile}>
+          <View style={[styles.infoRow, { borderBottomColor: theme.border }]}> 
+            <Text style={[styles.infoLabel, { color: theme.mutedText }]}>{t('profile.fullName')}</Text>
+            <Text style={[styles.infoValue, { color: theme.text }]}>{profile?.fullName || t('profile.mindcareUser')}</Text>
           </View>
 
           <View style={styles.infoRowNoBorder}>
-            <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{profile?.email || 'Not available'}</Text>
+            <Text style={[styles.infoLabel, { color: theme.mutedText }]}>{t('profile.email')}</Text>
+            <Text style={[styles.infoValue, { color: theme.text }]}>{profile?.email || t('profile.notAvailable')}</Text>
           </View>
         </InfoCard>
 
-        <InfoCard title="Recent Mood History">
+        <InfoCard title={t('language.change')}>
+          <Text style={[styles.infoLabel, { color: theme.mutedText }]}>{t('language.current')}</Text>
+          <Text style={[styles.infoValue, { color: theme.text }]}>
+            {languageMeta?.[language]?.nativeName || language}
+          </Text>
+          <View style={styles.languageListWrap}>
+            {supportedLanguages.map((code) => {
+              const isActive = language === code;
+              return (
+                <TouchableOpacity
+                  key={code}
+                  style={[
+                    styles.languageChip,
+                    {
+                      borderColor: isActive ? theme.primary : theme.border,
+                      backgroundColor: isActive ? theme.inputBackground : theme.card,
+                    },
+                  ]}
+                  onPress={() => handleLanguageChange(code)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.languageChipText, { color: isActive ? theme.primary : theme.text }]}>
+                    {languageMeta?.[code]?.nativeName || code}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </InfoCard>
+
+        <InfoCard title={t('profile.recentMoodHistory')}>
           {moods.length === 0 ? (
-            <Text style={styles.emptyText}>No mood records yet</Text>
+            <Text style={[styles.emptyText, { color: theme.mutedText }]}>{t('profile.noMoodRecords')}</Text>
           ) : (
             moods.map((item) => (
               <MoodItem key={item.id} mood={item.mood} createdAt={item.createdAt} />
@@ -162,30 +348,75 @@ const ProfileScreen = ({ navigation }) => {
           )}
         </InfoCard>
 
-        <TouchableOpacity style={styles.chatButton} onPress={() => navigation.navigate('Chat')}>
-          <Text style={styles.chatButtonText}>Talk to AI Support Assistant</Text>
-        </TouchableOpacity>
+        <InfoCard title={t('profile.appearance')}>
+          <View style={styles.notificationRow}>
+            <View style={styles.notificationTextWrap}>
+              <Text style={[styles.notificationTitle, { color: theme.text }]}>{t('profile.darkMode')}</Text>
+              <Text style={[styles.notificationSubtitle, { color: theme.mutedText }]}>{t('profile.darkModeSubtitle')}</Text>
+            </View>
+            <Switch
+              value={isDark}
+              onValueChange={handleToggleDarkMode}
+              trackColor={{ false: '#CBDCE8', true: '#6B86A1' }}
+              thumbColor={isDark ? '#6FAEFF' : '#F5FAFF'}
+            />
+          </View>
+        </InfoCard>
+
+        <InfoCard title={t('profile.notifications')}>
+          <View style={styles.notificationRow}>
+            <View style={styles.notificationTextWrap}>
+              <Text style={[styles.notificationTitle, { color: theme.text }]}>{t('profile.supportiveReminders')}</Text>
+              <Text style={[styles.notificationSubtitle, { color: theme.mutedText }]}>
+                {t('profile.supportiveRemindersSubtitle')}
+              </Text>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={handleToggleNotifications}
+              disabled={updatingNotifications}
+              trackColor={{ false: '#CBDCE8', true: '#9EC9E8' }}
+              thumbColor={notificationsEnabled ? '#2A7FBF' : '#F5FAFF'}
+            />
+          </View>
+          {updatingNotifications ? (
+            <View style={styles.notificationSavingWrap}>
+              <ActivityIndicator size="small" color="#2A7FBF" />
+              <Text style={[styles.notificationSavingText, { color: theme.mutedText }]}>{t('profile.updatingPreference')}</Text>
+            </View>
+          ) : null}
+        </InfoCard>
+
+
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} disabled={loggingOut}>
           {loggingOut ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={styles.logoutText}>{t('profile.logout')}</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <Modal visible={editVisible} transparent animationType="fade" onRequestClose={() => setEditVisible(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <Text style={styles.modalLabel}>Full Name</Text>
+        <View style={[styles.modalBackdrop, { backgroundColor: theme.overlay }]}>
+          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>{t('profile.editTitle')}</Text>
+            <Text style={[styles.modalLabel, { color: theme.mutedText }]}>{t('profile.fullName')}</Text>
             <TextInput
               value={editName}
               onChangeText={handleNameChange}
-              placeholder="Enter your full name"
-              placeholderTextColor="#7A97AC"
-              style={[styles.modalInput, editNameError ? styles.modalInputError : null]}
+              placeholder={t('profile.enterFullName')}
+              placeholderTextColor={theme.mutedText}
+              style={[
+                styles.modalInput,
+                {
+                  color: theme.text,
+                  borderColor: theme.border,
+                  backgroundColor: theme.inputBackground,
+                },
+                editNameError ? styles.modalInputError : null,
+              ]}
               editable={!savingProfile}
               autoCapitalize="words"
             />
@@ -193,7 +424,7 @@ const ProfileScreen = ({ navigation }) => {
 
             <View style={styles.modalActions}>
               <Pressable style={styles.cancelButton} onPress={() => setEditVisible(false)} disabled={savingProfile}>
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: theme.mutedText }]}>{t('common.cancel')}</Text>
               </Pressable>
               <Pressable
                 style={[styles.saveButton, (savingProfile || !!editNameError) ? styles.saveButtonDisabled : null]}
@@ -203,7 +434,7 @@ const ProfileScreen = ({ navigation }) => {
                 {savingProfile ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.saveText}>Save</Text>
+                  <Text style={styles.saveText}>{t('common.save')}</Text>
                 )}
               </Pressable>
             </View>
@@ -255,6 +486,21 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 24,
   },
+  topBar: {
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
+  backButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
   infoRow: {
     borderBottomWidth: 1,
     borderBottomColor: '#EAF2F8',
@@ -276,11 +522,57 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  languageListWrap: {
+    marginTop: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  languageChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  languageChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   emptyText: {
     color: '#6B879D',
     fontSize: 14,
     fontStyle: 'italic',
     paddingVertical: 8,
+  },
+  notificationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  notificationTextWrap: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  notificationTitle: {
+    color: '#1C415F',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  notificationSubtitle: {
+    marginTop: 4,
+    color: '#6B879D',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  notificationSavingWrap: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  notificationSavingText: {
+    color: '#4E7491',
+    fontSize: 12,
+    fontWeight: '600',
   },
   chatButton: {
     marginTop: 6,

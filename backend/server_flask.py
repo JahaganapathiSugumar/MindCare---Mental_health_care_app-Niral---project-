@@ -23,6 +23,21 @@ CORS(app)
 # OpenAI Configuration
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
+LANGUAGE_NAMES = {
+    'en': 'English',
+    'ta': 'Tamil',
+    'hi': 'Hindi',
+    'ml': 'Malayalam',
+}
+
+
+def resolve_language_name(language_value):
+    """Map language code/value to a readable language name."""
+    normalized = str(language_value or '').strip().lower()
+    if not normalized:
+        return 'English'
+    return LANGUAGE_NAMES.get(normalized, str(language_value).strip())
+
 # System prompt for mental health assistant
 SYSTEM_PROMPT = """You are a supportive and empathetic mental health assistant. Your role is to provide compassionate, non-judgmental support using CBT (Cognitive Behavioral Therapy) principles and techniques.
 
@@ -53,9 +68,16 @@ def chat():
     """Main chat endpoint"""
     try:
         # Extract request data
-        data = request.get_json()
+        data = request.get_json() or {}
         user_id = data.get('userId')
+        language = data.get('language', 'en')
         message = data.get('message')
+
+        # Keep explicit field access pattern requested by product requirements
+        request_json = request.json or {}
+        language = request_json.get('language', language)
+        message = request_json.get('message', message)
+        language_name = resolve_language_name(language)
 
         # Validate input
         if not user_id or not message:
@@ -70,17 +92,21 @@ def chat():
 
         logger.info(f"Chat request from user: {user_id}")
 
+        prompt = f"""
+You are a supportive mental health assistant.
+Respond ONLY in {language_name}.
+Be empathetic and simple.
+
+User: {message.strip()}
+"""
+
         # Call OpenAI API
         response = openai.ChatCompletion.create(
             model='gpt-4o-mini',
             messages=[
                 {
-                    'role': 'system',
-                    'content': SYSTEM_PROMPT
-                },
-                {
                     'role': 'user',
-                    'content': message.strip()
+                    'content': prompt
                 }
             ],
             temperature=0.7,

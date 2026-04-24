@@ -1,14 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 const InfoCard = ({ title, actionLabel, onActionPress, children }) => {
+  const { theme } = useTheme();
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
         {actionLabel ? (
           <TouchableOpacity onPress={onActionPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={styles.actionText}>{actionLabel}</Text>
+            <Text style={[styles.actionText, { color: theme.primary }]}>{actionLabel}</Text>
           </TouchableOpacity>
         ) : null}
       </View>

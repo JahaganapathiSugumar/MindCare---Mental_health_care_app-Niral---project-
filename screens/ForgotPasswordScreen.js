@@ -14,6 +14,7 @@ import { getFirebaseInstance } from '../firebase';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import { validateEmail, getErrorMessage } from '../utils/validation';
+import { useTranslation } from 'react-i18next';
 
 /**
  * ForgotPasswordScreen - Allows users to reset their password
@@ -26,6 +27,7 @@ import { validateEmail, getErrorMessage } from '../utils/validation';
  * - Navigation back to sign in
  */
 const ForgotPasswordScreen = ({ navigation }) => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -37,12 +39,12 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
     // Validate email
     if (!email.trim()) {
-      setError('Email is required');
+      setError(t('validation.emailRequired'));
       return;
     }
 
     if (!validateEmail(email)) {
-      setError('Please enter a valid email');
+      setError(t('validation.emailInvalid'));
       return;
     }
 
@@ -52,7 +54,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
       const { auth } = getFirebaseInstance();
       
       if (!auth) {
-        setError('Firebase not initialized');
+        setError(t('auth.firebaseNotReadyBody'));
         setLoading(false);
         return;
       }
@@ -61,11 +63,11 @@ const ForgotPasswordScreen = ({ navigation }) => {
       setEmailSent(true);
       
       Alert.alert(
-        'Password Reset Email Sent',
-        'Check your email for instructions to reset your password.',
+        t('auth.resetEmailSentTitle', { defaultValue: 'Password Reset Email Sent' }),
+        t('auth.resetEmailSentBody', { defaultValue: 'Check your email for instructions to reset your password.' }),
         [
           {
-            text: 'OK',
+            text: t('common.ok'),
             onPress: () => navigation.replace('SignIn'),
           },
         ]
@@ -83,12 +85,12 @@ const ForgotPasswordScreen = ({ navigation }) => {
       <View style={styles.container}>
         <View style={styles.successContainer}>
           <Text style={styles.successIcon}>✉️</Text>
-          <Text style={styles.successTitle}>Check Your Email</Text>
+          <Text style={styles.successTitle}>{t('auth.checkEmailTitle', { defaultValue: 'Check Your Email' })}</Text>
           <Text style={styles.successText}>
-            We've sent password reset instructions to {email}
+            {t('auth.checkEmailBody', { defaultValue: "We've sent password reset instructions to {{email}}", email })}
           </Text>
           <CustomButton
-            title="Back to Sign In"
+            title={t('auth.backToSignIn', { defaultValue: 'Back to Sign In' })}
             onPress={() => navigation.replace('SignIn')}
           />
         </View>
@@ -111,19 +113,19 @@ const ForgotPasswordScreen = ({ navigation }) => {
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Text style={styles.backButtonText}>← {t('common.back')}</Text>
           </TouchableOpacity>
           
-          <Text style={styles.title}>Reset Password</Text>
+          <Text style={styles.title}>{t('auth.resetPasswordTitle', { defaultValue: 'Reset Password' })}</Text>
           <Text style={styles.subtitle}>
-            Enter your email to receive password reset instructions
+            {t('auth.resetPasswordSubtitle', { defaultValue: 'Enter your email to receive password reset instructions' })}
           </Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <CustomInput
-            label="Email Address"
+            label={t('auth.email', { defaultValue: 'Email Address' })}
             placeholder="you@example.com"
             value={email}
             onChangeText={setEmail}
@@ -132,7 +134,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
           />
 
           <CustomButton
-            title="Send Reset Email"
+            title={t('auth.sendResetEmail', { defaultValue: 'Send Reset Email' })}
             onPress={handleSendResetEmail}
             loading={loading}
             disabled={loading}
@@ -141,9 +143,9 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Remember your password? </Text>
+          <Text style={styles.footerText}>{t('auth.rememberPassword', { defaultValue: 'Remember your password?' })} </Text>
           <TouchableOpacity onPress={() => navigation.replace('SignIn')}>
-            <Text style={styles.link}>Sign In</Text>
+            <Text style={styles.link}>{t('auth.signIn')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

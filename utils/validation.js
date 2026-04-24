@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 // Email validation using regex
 export const validateEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -19,17 +21,17 @@ export const getFullNameValidationError = (name) => {
   const trimmed = (name || '').trim();
 
   if (!trimmed) {
-    return 'Full name is required';
+    return i18n.t('validation.fullNameRequired');
   }
 
   if (trimmed.length < 2) {
-    return 'Name must be at least 2 characters';
+    return i18n.t('validation.nameMinLength');
   }
 
   // Ignore spaces and punctuation commonly used in names when checking numeric-only input.
   const normalized = trimmed.replace(/[\s'\-.]/g, '');
   if (normalized.length > 0 && /^\d+$/.test(normalized)) {
-    return 'Name cannot contain only numbers';
+    return i18n.t('validation.nameNumbersOnly');
   }
 
   return '';
@@ -50,21 +52,21 @@ export const validateSignUp = (fullName, email, password, confirmPassword) => {
   }
 
   if (!email.trim()) {
-    errors.email = 'Email is required';
+    errors.email = i18n.t('validation.emailRequired');
   } else if (!validateEmail(email)) {
-    errors.email = 'Please enter a valid email';
+    errors.email = i18n.t('validation.emailInvalid');
   }
 
   if (!password) {
-    errors.password = 'Password is required';
+    errors.password = i18n.t('validation.passwordRequired');
   } else if (!validatePassword(password)) {
-    errors.password = 'Password must be at least 6 characters';
+    errors.password = i18n.t('validation.passwordMin');
   }
 
   if (!confirmPassword) {
-    errors.confirmPassword = 'Please confirm your password';
+    errors.confirmPassword = i18n.t('validation.confirmPasswordRequired');
   } else if (!validatePasswordMatch(password, confirmPassword)) {
-    errors.confirmPassword = 'Passwords do not match';
+    errors.confirmPassword = i18n.t('validation.passwordMismatch');
   }
 
   return errors;
@@ -75,13 +77,13 @@ export const validateSignIn = (email, password) => {
   const errors = {};
 
   if (!email.trim()) {
-    errors.email = 'Email is required';
+    errors.email = i18n.t('validation.emailRequired');
   } else if (!validateEmail(email)) {
-    errors.email = 'Please enter a valid email';
+    errors.email = i18n.t('validation.emailInvalid');
   }
 
   if (!password) {
-    errors.password = 'Password is required';
+    errors.password = i18n.t('validation.passwordRequired');
   }
 
   return errors;
@@ -90,15 +92,15 @@ export const validateSignIn = (email, password) => {
 // Firebase to user-friendly error messages
 export const getErrorMessage = (errorCode) => {
   const errorMessages = {
-    'auth/user-not-found': 'No account found with this email',
-    'auth/wrong-password': 'Incorrect password',
-    'auth/invalid-email': 'Invalid email address',
-    'auth/email-already-in-use': 'Email already registered',
-    'auth/weak-password': 'Password is too weak',
-    'auth/operation-not-allowed': 'Operation not allowed',
-    'auth/too-many-requests': 'Too many failed attempts. Try again later.',
-    'auth/network-request-failed': 'Network error. Check your connection.',
+    'auth/user-not-found': i18n.t('auth.userNotFound', { defaultValue: 'No account found with this email' }),
+    'auth/wrong-password': i18n.t('auth.incorrectPassword', { defaultValue: 'Incorrect password' }),
+    'auth/invalid-email': i18n.t('auth.invalidEmail', { defaultValue: 'Invalid email address' }),
+    'auth/email-already-in-use': i18n.t('auth.emailInUse', { defaultValue: 'Email already registered' }),
+    'auth/weak-password': i18n.t('auth.weakPassword', { defaultValue: 'Password is too weak' }),
+    'auth/operation-not-allowed': i18n.t('auth.operationNotAllowed', { defaultValue: 'Operation not allowed' }),
+    'auth/too-many-requests': i18n.t('auth.tooManyRequests', { defaultValue: 'Too many failed attempts. Try again later.' }),
+    'auth/network-request-failed': i18n.t('auth.networkError', { defaultValue: 'Network error. Check your connection.' }),
   };
 
-  return errorMessages[errorCode] || 'An error occurred. Please try again.';
+  return errorMessages[errorCode] || i18n.t('auth.genericError', { defaultValue: 'An error occurred. Please try again.' });
 };

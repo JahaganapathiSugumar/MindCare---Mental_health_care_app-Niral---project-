@@ -8,12 +8,27 @@ try {
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import RootNavigator from './navigation/RootNavigator';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
+import './i18n';
+
+const AppContent = () => {
+  const { isDark, theme } = useTheme();
+
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={theme.background} />
+      <RootNavigator />
+    </>
+  );
+};
 
 export default function App() {
   return (
-    <>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-      <RootNavigator />
-    </>
+    <LanguageProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </LanguageProvider>
   );
 }
