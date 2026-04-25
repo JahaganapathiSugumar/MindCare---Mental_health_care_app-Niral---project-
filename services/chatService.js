@@ -3,6 +3,12 @@ import { getFirebaseInstance, ensureAuthInitialized } from '../firebase';
 import { updateUserActivity } from './firebase';
 
 const MOOD_LABELS = ['happy', 'sad', 'neutral', 'anxious'];
+const MOOD_SCALE = {
+  sad: 1,
+  anxious: 2,
+  neutral: 3,
+  happy: 4,
+};
 
 const normalizeMood = (value) => {
   const mood = (value || '').toLowerCase().trim();
@@ -147,6 +153,41 @@ export const saveAIMoodEntry = async (mood) => {
     activityAt: new Date(),
     moodUpdated: true,
   });
+};
+
+export const saveMoodRecoveryScore = async ({ initialMood, finalMood } = {}) => {
+  const auth = await ensureAuthInitialized();
+  const { db } = getFirebaseInstance();
+
+  if (!auth?.currentUser) {
+    throw new Error('No authenticated user found.');
+  }
+
+  if (!db) {
+    throw new Error('Firestore is not initialized.');
+  }
+
+  const normalizedInitialMood = normalizeMood(initialMood) || 'neutral';
+  const normalizedFinalMood = normalizeMood(finalMood) || 'neutral';
+  const recoveryScore = (MOOD_SCALE[normalizedFinalMood] || 3) - (MOOD_SCALE[normalizedInitialMood] || 3);
+
+  const recoveryRef = collection(db, 'moodRecoveryScores');
+  const docRef = await addDoc(recoveryRef, {
+    userId: auth.currentUser.uid,
+    initialMood: normalizedInitialMood,
+    finalMood: normalizedFinalMood,
+    recoveryScore,
+    timestamp: serverTimestamp(),
+    createdAt: new Date().toISOString(),
+  });
+
+  return {
+    id: docRef.id,
+    userId: auth.currentUser.uid,
+    initialMood: normalizedInitialMood,
+    finalMood: normalizedFinalMood,
+    recoveryScore,
+  };
 };
 
 // Fetch chat history from Firestore

@@ -18,11 +18,24 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { ensureAuthInitialized } from '../firebase';
 import { sendMessageToAI } from '../services/apiService';
-import { fetchChatHistory, saveAIMoodEntry, saveChatMessage } from '../services/chatService';
+import { fetchChatHistory, saveAIMoodEntry, saveChatMessage, saveMoodRecoveryScore } from '../services/chatService';
+import MoodRecoveryCard from '../components/MoodRecoveryCard';
 import SuggestionsPanel from '../components/SuggestionsPanel';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
+
+const MOOD_SCALE = {
+  sad: 1,
+  anxious: 2,
+  neutral: 3,
+  happy: 4,
+};
+
+const normalizeMood = (value) => {
+  const mood = String(value || '').trim().toLowerCase();
+  return MOOD_SCALE[mood] ? mood : 'neutral';
+};
 
 const formatMessageTime = (dateValue) => {
   const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
@@ -74,10 +87,16 @@ const ChatScreen = ({ navigation, route }) => {
   const [userEmail, setUserEmail] = useState('');
   const [highlightChatId, setHighlightChatId] = useState(route?.params?.highlightChatId || null);
   const [previewBannerChat, setPreviewBannerChat] = useState(route?.params?.previewChat || null);
+  const [sessionInitialMood, setSessionInitialMood] = useState('');
+  const [sessionFinalMood, setSessionFinalMood] = useState('');
+  const [moodRecoveryScore, setMoodRecoveryScore] = useState(0);
 
   const flatListRef = useRef(null);
   const inputRef = useRef(null);
   const themeFadeAnim = useRef(new Animated.Value(1)).current;
+  const typingDot1 = useRef(new Animated.Value(0.25)).current;
+  const typingDot2 = useRef(new Animated.Value(0.25)).current;
+  const typingDot3 = useRef(new Animated.Value(0.25)).current;
 
   const shouldAutoFocusInput = !route?.params?.highlightChatId && !route?.params?.previewChat;
 
@@ -229,6 +248,43 @@ const ChatScreen = ({ navigation, route }) => {
     }).start();
   }, [isDark, themeFadeAnim]);
 
+  useEffect(() => {
+    if (!sending) {
+      typingDot1.setValue(0.25);
+      typingDot2.setValue(0.25);
+      typingDot3.setValue(0.25);
+      return;
+    }
+
+    const pulse = (value, delay) => Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(value, {
+          toValue: 1,
+          duration: 380,
+          useNativeDriver: true,
+        }),
+        Animated.timing(value, {
+          toValue: 0.25,
+          duration: 380,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    const animations = [
+      pulse(typingDot1, 0),
+      pulse(typingDot2, 120),
+      pulse(typingDot3, 240),
+    ];
+
+    animations.forEach((anim) => anim.start());
+
+    return () => {
+      animations.forEach((anim) => anim.stop());
+    };
+  }, [sending, typingDot1, typingDot2, typingDot3]);
+
   const handleSend = useCallback(async () => {
     if (!inputText.trim() || sending || !currentUser) {
       return;
@@ -273,8 +329,44 @@ const ChatScreen = ({ navigation, route }) => {
 
         setMessages((prev) => [...prev, aiMessage]);
 
+        if (result.crisis?.showEmergencyAlert) {
+          Alert.alert(
+            t('chat.crisisAlertTitle', { defaultValue: 'You matter. Let us keep you safe.' }),
+            t('chat.crisisAlertBody', {
+              defaultValue: 'If you might hurt yourself or feel in immediate danger, contact local emergency services or a trusted person right now.',
+            }),
+            [
+              {
+                text: t('common.ok', { defaultValue: 'OK' }),
+                style: 'default',
+              },
+            ]
+          );
+        }
+
         try {
           const detectedMood = result.mood || 'neutral';
+          const normalizedDetectedMood = normalizeMood(detectedMood);
+
+          const initialMood = sessionInitialMood || normalizedDetectedMood;
+          const finalMood = normalizedDetectedMood;
+          const score = (MOOD_SCALE[finalMood] || 3) - (MOOD_SCALE[initialMood] || 3);
+
+          setSessionInitialMood(initialMood);
+          setSessionFinalMood(finalMood);
+          setMoodRecoveryScore(score);
+
+          if (!sessionInitialMood || sessionFinalMood !== finalMood) {
+            try {
+              await saveMoodRecoveryScore({
+                initialMood,
+                finalMood,
+              });
+            } catch (recoveryError) {
+              console.warn('[ChatScreen] Failed to save mood recovery score:', recoveryError.message);
+            }
+          }
+
           await saveChatMessage(
             userMessage.text,
             result.response,
@@ -314,7 +406,7 @@ const ChatScreen = ({ navigation, route }) => {
     } finally {
       setSending(false);
     }
-  }, [inputText, sending, currentUser, userEmail, language, t]);
+  }, [inputText, sending, currentUser, userEmail, language, t, sessionInitialMood, sessionFinalMood]);
 
   const renderMessage = ({ item }) => {
     const isUserMessage = item.sender === 'user';
@@ -442,10 +534,23 @@ const ChatScreen = ({ navigation, route }) => {
         />
 
         {sending ? (
-          <View style={[styles.typingContainer, { backgroundColor: isDark ? '#23303B' : '#E3F0FB' }]}>
+          <View style={[styles.typingContainer, { backgroundColor: isDark ? '#222A31' : '#EAF4FF', borderColor: theme.border }]}> 
             <MaterialCommunityIcons name="robot-happy-outline" size={14} color="#2A7FBF" />
-            <Text style={[styles.typingText, { color: theme.primary }]}>{t('chat.thinking')}</Text>
+            <Text style={[styles.typingText, { color: theme.primary }]}>{t('chat.thinking', { defaultValue: 'AI is typing...' })}</Text>
+            <View style={styles.typingDotsWrap}>
+              <Animated.View style={[styles.typingDot, { opacity: typingDot1, backgroundColor: theme.primary }]} />
+              <Animated.View style={[styles.typingDot, { opacity: typingDot2, backgroundColor: theme.primary }]} />
+              <Animated.View style={[styles.typingDot, { opacity: typingDot3, backgroundColor: theme.primary }]} />
+            </View>
           </View>
+        ) : null}
+
+        {sessionInitialMood && sessionFinalMood ? (
+          <MoodRecoveryCard
+            score={moodRecoveryScore}
+            initialMood={sessionInitialMood}
+            finalMood={sessionFinalMood}
+          />
         ) : null}
 
         <View style={styles.inputBarWrap}>
@@ -500,11 +605,11 @@ const styles = StyleSheet.create({
   },
   headerCard: {
     marginHorizontal: 14,
-    marginTop: 10,
+    marginTop: 8,
     marginBottom: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 16,
+    paddingVertical: 9,
+    borderRadius: 14,
     backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
@@ -539,7 +644,7 @@ const styles = StyleSheet.create({
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E9F9EE',
+    backgroundColor: '#EAF9EF',
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 5,
@@ -549,11 +654,11 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#2CB670',
+    backgroundColor: '#50C878',
   },
   statusText: {
     fontSize: 11,
-    color: '#208752',
+    color: '#2F8D5A',
     fontWeight: '700',
   },
   previewBanner: {
@@ -575,8 +680,8 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     paddingHorizontal: 14,
-    paddingBottom: 10,
-    paddingTop: 2,
+    paddingBottom: 12,
+    paddingTop: 4,
   },
   daySeparatorWrap: {
     flexDirection: 'row',
@@ -619,21 +724,21 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   messageBubble: {
-    maxWidth: '79%',
+    maxWidth: '80%',
     paddingHorizontal: 13,
-    paddingVertical: 10,
-    borderRadius: 16,
+    paddingVertical: 9,
+    borderRadius: 14,
     borderWidth: 1,
   },
   userBubble: {
-    backgroundColor: '#2A7FBF',
-    borderColor: '#2674AF',
-    borderBottomRightRadius: 6,
+    backgroundColor: '#4A90E2',
+    borderColor: '#4A90E2',
+    borderBottomRightRadius: 4,
   },
   aiBubble: {
     backgroundColor: '#FFFFFF',
     borderColor: '#D7E7F4',
-    borderBottomLeftRadius: 6,
+    borderBottomLeftRadius: 4,
   },
   highlightedBubble: {
     borderColor: '#F2B93B',
@@ -666,37 +771,49 @@ const styles = StyleSheet.create({
   typingContainer: {
     marginHorizontal: 14,
     marginBottom: 8,
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 10,
     borderRadius: 12,
-    backgroundColor: '#E3F0FB',
+    backgroundColor: '#EAF4FF',
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   typingText: {
-    color: '#2A7FBF',
+    color: '#4A90E2',
     fontSize: 12,
     fontWeight: '700',
   },
+  typingDotsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 2,
+  },
+  typingDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+  },
   inputBarWrap: {
     paddingHorizontal: 12,
-    paddingBottom: 8,
+    paddingBottom: 10,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#D5E6F3',
     paddingHorizontal: 10,
     paddingVertical: 8,
     shadowColor: '#12263A',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: 7,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 2,
   },
   input: {
     flex: 1,
@@ -707,7 +824,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   sendButton: {
-    backgroundColor: '#2A7FBF',
+    backgroundColor: '#4A90E2',
     width: 40,
     height: 40,
     borderRadius: 20,

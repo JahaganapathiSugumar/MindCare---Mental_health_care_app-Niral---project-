@@ -64,6 +64,14 @@ export const sendMessageToAI = async (userId, message, language = i18n.language 
         response: response.data.response,
         mood: response.data.mood || 'neutral',
         suggestions: Array.isArray(response.data.suggestions) ? response.data.suggestions : [],
+        crisis: response.data.crisis || {
+          detected: false,
+          level: 'none',
+          showEmergencyAlert: false,
+          recommendProfessionalHelp: false,
+          keywordHits: [],
+          score: 0,
+        },
       };
     }
 
@@ -102,6 +110,54 @@ export const sendMessageToAI = async (userId, message, language = i18n.language 
     return {
       success: false,
       error: error.response?.data?.error || i18n.t('api.failed'),
+    };
+  }
+};
+
+export const fetchDailyReflections = async (userId, limit = 5) => {
+  try {
+    const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(20, limit)) : 5;
+    const response = await apiClient.get(`/reflections/${userId}?limit=${safeLimit}`);
+
+    if (response.status === 200) {
+      return {
+        success: true,
+        reflections: Array.isArray(response.data?.reflections) ? response.data.reflections : [],
+      };
+    }
+
+    throw new Error('Invalid reflection response format');
+  } catch (error) {
+    console.warn('[API] Error fetching reflections:', error.message);
+    return {
+      success: false,
+      reflections: [],
+      error: error.response?.data?.error || 'Failed to fetch reflections',
+    };
+  }
+};
+
+export const runAgentEvaluation = async (userId, language = i18n.language || 'en') => {
+  try {
+    const response = await apiClient.post('/agents/evaluate', {
+      userId,
+      language,
+    });
+
+    if (response.status === 200) {
+      return {
+        success: true,
+        result: response.data || {},
+      };
+    }
+
+    throw new Error('Invalid agent evaluation response');
+  } catch (error) {
+    console.warn('[API] Agent evaluation failed:', error.message);
+    return {
+      success: false,
+      result: {},
+      error: error.response?.data?.error || 'Agent evaluation failed',
     };
   }
 };

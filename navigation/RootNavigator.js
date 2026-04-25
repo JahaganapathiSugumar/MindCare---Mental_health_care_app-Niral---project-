@@ -5,10 +5,12 @@ import { View, ActivityIndicator, Text } from 'react-native';
 import { onAuthStateChanged } from 'firebase/auth';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ChatScreen from '../screens/ChatScreen';
 import MoodScreen from '../screens/MoodScreen';
+import ReportScreen from '../screens/ReportScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LanguageSelectionScreen from '../screens/LanguageSelectionScreen';
 import { initializeProactiveNotifications } from '../services/notifications';
@@ -184,11 +186,13 @@ const RootNavigator = () => {
             {hasSelectedLanguage ? <Stack.Screen name="Profile" component={ProfileScreen} /> : null}
             {hasSelectedLanguage ? <Stack.Screen name="Chat" component={ChatScreen} /> : null}
             {hasSelectedLanguage ? <Stack.Screen name="Mood" component={MoodScreen} /> : null}
+            {hasSelectedLanguage ? <Stack.Screen name="Report" component={ReportScreen} /> : null}
           </>
         ) : (
           <>
             <Stack.Screen name="SignIn" component={SignInScreen} />
             <Stack.Screen name="SignUp" component={SignUpScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           </>
         )}
       </Stack.Navigator>

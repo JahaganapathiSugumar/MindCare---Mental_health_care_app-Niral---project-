@@ -35,8 +35,9 @@ const SuggestionsPanel = ({ suggestions = [], onSuggestionPress }) => {
         styles.container,
         {
           opacity: fadeAnim,
-          backgroundColor: isDark ? '#1D2730' : '#EAF4FF',
+          backgroundColor: isDark ? '#202A33' : '#EAF4FF',
           borderColor: theme.border,
+          shadowColor: theme.shadow || '#1A3C5A',
         },
       ]}
     >
@@ -70,6 +71,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 7,
+    elevation: 2,
   },
   headerRow: {
     flexDirection: 'row',
@@ -79,7 +84,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   chipsWrap: {
     flexDirection: 'row',

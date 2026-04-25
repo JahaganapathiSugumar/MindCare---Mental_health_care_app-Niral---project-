@@ -20,7 +20,7 @@ import { fetchProfileData } from '../services/profileService';
 import { getChatHistoryWindow, getMoodHistoryWindow, getRecentChats, getRecentMoods } from '../services/firebase';
 import { initializeProactiveNotifications } from '../services/notifications';
 import { useTheme } from '../context/ThemeContext';
-import { generateAIInsights } from '../services/apiService';
+import { fetchDailyReflections, generateAIInsights, runAgentEvaluation } from '../services/apiService';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -146,6 +146,8 @@ const HomeScreen = ({ navigation }) => {
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [insights, setInsights] = useState([]);
   const [insightTrend, setInsightTrend] = useState([]);
+  const [dailyReflections, setDailyReflections] = useState([]);
+  const [reflectionsLoading, setReflectionsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recentChats, setRecentChats] = useState([]);
   
@@ -308,6 +310,7 @@ const HomeScreen = ({ navigation }) => {
 
       setRecentChatsLoading(true);
       setMoodLoading(true);
+      setReflectionsLoading(true);
       const auth = await ensureAuthInitialized();
       if (auth?.currentUser) {
         const profile = await fetchProfileData();
@@ -329,6 +332,17 @@ const HomeScreen = ({ navigation }) => {
 
         const latestChats = await getRecentChats(auth.currentUser.uid, 3);
         setRecentChats(latestChats);
+
+        const [reflectionResult] = await Promise.all([
+          fetchDailyReflections(auth.currentUser.uid, 4),
+          runAgentEvaluation(auth.currentUser.uid, language),
+        ]);
+
+        if (reflectionResult?.success) {
+          setDailyReflections(reflectionResult.reflections.slice(0, 3));
+        } else {
+          setDailyReflections([]);
+        }
 
         await loadAIInsights(auth.currentUser.uid, profile.fullName || userName || t('profile.mindcareUser'));
 
@@ -357,6 +371,7 @@ const HomeScreen = ({ navigation }) => {
       setLoading(false);
       setMoodLoading(false);
       setRecentChatsLoading(false);
+      setReflectionsLoading(false);
       setRefreshing(false);
     }
   };
@@ -488,6 +503,26 @@ const HomeScreen = ({ navigation }) => {
               </LinearGradient>
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={styles.reportActionButton}
+            onPress={() => handleNavigate('Report')}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={['#2C9FA3', '#247D86']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.reportActionGradient}
+            >
+              <MaterialCommunityIcons name="file-document-outline" size={22} color="#FFF" />
+              <View style={styles.reportActionTextWrap}>
+                <Text style={styles.reportActionTitle}>{t('report.generateCta', { defaultValue: 'Generate Daily Report' })}</Text>
+                <Text style={styles.reportActionSubtitle}>{t('report.subtitle', { defaultValue: 'AI summary + PDF export for today' })}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
 
         {/* Mood Summary Section */}
@@ -607,10 +642,10 @@ const HomeScreen = ({ navigation }) => {
                             {
                               height: barHeight,
                               backgroundColor: point.value >= 3
-                                ? '#3FAF62'
+                                ? '#50C878'
                                 : point.value <= 2
                                   ? '#F29C38'
-                                  : '#6FAEFF',
+                                  : '#4A90E2',
                             },
                           ]}
                         />
@@ -620,6 +655,52 @@ const HomeScreen = ({ navigation }) => {
                   })}
                 </View>
               </View>
+            </View>
+          )}
+        </View>
+
+        {/* Daily Reflections Agent Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.dailyReflectionTitle', { defaultValue: 'Daily Reflection' })}</Text>
+            <TouchableOpacity onPress={() => loadUserData(true)}>
+              <Text style={[styles.seeAllText, { color: theme.primary }]}>{t('home.refresh')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {reflectionsLoading ? (
+            <View style={[styles.recentChatsLoadingCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
+              <ActivityIndicator size="small" color={theme.primary} />
+              <Text style={[styles.recentChatsLoadingText, { color: theme.mutedText }]}>
+                {t('home.generatingReflection', { defaultValue: 'Generating your daily reflection...' })}
+              </Text>
+            </View>
+          ) : dailyReflections.length ? (
+            <View style={[styles.reflectionCardWrap, { backgroundColor: theme.card, borderColor: theme.border }]}> 
+              {dailyReflections.map((item, index) => (
+                <View key={item.id || `${item.summary}-${index}`} style={styles.reflectionItem}>
+                  <View style={styles.reflectionBadge}>
+                    <MaterialCommunityIcons name="notebook-edit-outline" size={16} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.reflectionContent}>
+                    <Text style={[styles.reflectionSummary, { color: theme.text }]} numberOfLines={3}>
+                      {item.summary}
+                    </Text>
+                    <Text style={[styles.reflectionTime, { color: theme.mutedText }]}>
+                      {getRelativeTime(item.timestamp, t)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={[styles.emptyActivityContainer, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
+              <Text style={[styles.emptyActivityText, { color: theme.text }]}>
+                {t('home.noReflectionsYet', { defaultValue: 'No reflections yet' })}
+              </Text>
+              <Text style={[styles.emptyActivitySubtext, { color: theme.mutedText }]}>
+                {t('home.noReflectionsHint', { defaultValue: 'Chat and mood check-ins will generate a daily summary card.' })}
+              </Text>
             </View>
           )}
         </View>
@@ -795,17 +876,17 @@ const styles = StyleSheet.create({
 
   // Sections
   section: {
-    paddingHorizontal: 18,
-    marginTop: 28,
+    paddingHorizontal: 16,
+    marginTop: 22,
   },
   sectionLast: {
     marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: '800',
     color: '#1C3A5C',
-    marginBottom: 16,
+    marginBottom: 14,
     letterSpacing: -0.4,
     lineHeight: 24,
   },
@@ -826,23 +907,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 14,
   },
-  actionCard: {
-    flex: 1,
-    borderRadius: 18,
+  reportActionButton: {
+    marginTop: 12,
+    borderRadius: 14,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 14,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  reportActionGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reportActionTextWrap: {
+    flex: 1,
+  },
+  reportActionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  reportActionSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.88)',
+    fontWeight: '600',
+  },
+  actionCard: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
   actionCardGradient: {
-    paddingVertical: 28,
-    paddingHorizontal: 18,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    borderRadius: 18,
+    borderRadius: 16,
   },
   actionCardText: {
     fontSize: 16,
@@ -881,12 +994,12 @@ const styles = StyleSheet.create({
   },
   moodCard: {
     borderRadius: 16,
-    padding: 18,
+    padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowRadius: 8,
+    elevation: 3,
   },
   latestMoodRow: {
     flexDirection: 'row',
@@ -1005,7 +1118,7 @@ const styles = StyleSheet.create({
   },
   moodTrackButton: {
     marginTop: 14,
-    backgroundColor: '#2A7FBF',
+    backgroundColor: '#4A90E2',
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 16,
@@ -1019,7 +1132,7 @@ const styles = StyleSheet.create({
   // Recent Activity
   recentChatsCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 16,
     paddingVertical: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -1161,9 +1274,9 @@ const styles = StyleSheet.create({
   },
   emptyActivityContainer: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 28,
+    paddingVertical: 24,
     paddingHorizontal: 18,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1183,11 +1296,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  reflectionCardWrap: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 10,
+  },
+  reflectionItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 6,
+  },
+  reflectionBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4A90E2',
+  },
+  reflectionContent: {
+    flex: 1,
+  },
+  reflectionSummary: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '600',
+  },
+  reflectionTime: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+
   // Wellness Tip
   tipCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: 14,
+    padding: 16,
     flexDirection: 'row',
     gap: 14,
     shadowColor: '#000',
@@ -1196,7 +1344,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
     borderLeftWidth: 5,
-    borderLeftColor: '#FFD700',
+    borderLeftColor: '#A8CFF5',
   },
   tipIcon: {
     width: 54,

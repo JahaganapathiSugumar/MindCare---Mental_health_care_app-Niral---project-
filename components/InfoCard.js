@@ -22,15 +22,14 @@ const InfoCard = ({ title, actionLabel, onActionPress, children }) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 14,
-    shadowColor: '#113B57',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
+    paddingVertical: 16,
+    marginBottom: 16,
+    shadowColor: '#1A3C5A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
     elevation: 3,
   },
   headerRow: {
@@ -40,14 +39,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1B3E5A',
+    fontSize: 17,
+    fontWeight: '800',
   },
   actionText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#2A7FBF',
+    fontWeight: '700',
   },
 });
 

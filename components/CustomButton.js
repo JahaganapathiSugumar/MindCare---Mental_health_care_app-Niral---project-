@@ -1,56 +1,72 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { Pressable, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 const CustomButton = ({
   title,
   onPress,
   loading = false,
   disabled = false,
+  variant = 'primary',
   style,
 }) => {
+  const { theme, isDark } = useTheme();
+  const isSecondary = variant === 'secondary';
+
   return (
-    <TouchableOpacity
-      style={[
+    <Pressable
+      style={({ pressed }) => [
         styles.button,
+        {
+          backgroundColor: isSecondary ? (isDark ? '#252B33' : '#EAF4FF') : theme.primary,
+          borderColor: isSecondary ? theme.border : theme.primary,
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+        },
         disabled || loading ? styles.disabledButton : null,
         style,
       ]}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.8}
     >
       {loading ? (
-        <ActivityIndicator color="#fff" size="small" />
+        <ActivityIndicator color={isSecondary ? theme.primary : '#FFFFFF'} size="small" />
       ) : (
-        <Text style={styles.buttonText}>{title}</Text>
+        <Text
+          style={[
+            styles.buttonText,
+            { color: isSecondary ? theme.primary : '#FFFFFF' },
+          ]}
+        >
+          {title}
+        </Text>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#667eea',
+    borderWidth: 1,
     paddingVertical: 14,
-    paddingHorizontal: 40,
+    paddingHorizontal: 20,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 12,
-    shadowColor: '#667eea',
+    marginVertical: 10,
+    shadowColor: '#1A3C5A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.14,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 3,
   },
   disabledButton: {
-    backgroundColor: '#ccc',
-    shadowOpacity: 0.1,
+    opacity: 0.55,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     letterSpacing: 0.3,
   },
 });

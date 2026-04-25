@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   View,
   Text,
   ScrollView,
@@ -9,6 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { setDoc, doc } from 'firebase/firestore';
 import { getFirebaseInstance, ensureAuthInitialized } from '../firebase';
@@ -17,16 +21,58 @@ import CustomButton from '../components/CustomButton';
 import { validateSignUp } from '../utils/validation';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
+import { radius, spacing } from '../utils/uiTokens';
 
 const SignUpScreen = ({ navigation }) => {
   const { t } = useTranslation();
   const { language } = useLanguage();
+  const { theme, isDark } = useTheme();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const heroOpacity = useRef(new Animated.Value(0)).current;
+  const heroTranslateY = useRef(new Animated.Value(14)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formTranslateY = useRef(new Animated.Value(14)).current;
+  const footerOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.stagger(90, [
+      Animated.parallel([
+        Animated.timing(heroOpacity, {
+          toValue: 1,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+        Animated.timing(heroTranslateY, {
+          toValue: 0,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(formOpacity, {
+          toValue: 1,
+          duration: 340,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formTranslateY, {
+          toValue: 0,
+          duration: 340,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(footerOpacity, {
+        toValue: 1,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [footerOpacity, formOpacity, formTranslateY, heroOpacity, heroTranslateY]);
 
   const handleSignUp = async () => {
     // Reset errors
@@ -148,130 +194,204 @@ const SignUpScreen = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}> 
+      {!isDark ? <View pointerEvents="none" style={styles.bgCircleTop} /> : null}
+      {!isDark ? <View pointerEvents="none" style={styles.bgCircleBottom} /> : null}
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.logo}>MindCare</Text>
-          <Text style={styles.title}>{t('auth.createAccount')}</Text>
-          <Text style={styles.subtitle}>
-            {t('auth.joinJourney')}
-          </Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="on-drag"
+        >
+          <Animated.View pointerEvents="box-none" style={{ opacity: heroOpacity, transform: [{ translateY: heroTranslateY }] }}>
+            <LinearGradient
+              colors={isDark ? ['#1A2129', '#121212'] : ['#EAF4FF', '#F7F9FC']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.hero, { borderColor: theme.border }]}
+            >
+              <View style={styles.brandRow}>
+                <View style={[styles.brandIcon, { backgroundColor: theme.card }]}> 
+                  <MaterialCommunityIcons name="heart-pulse" size={22} color={theme.primary} />
+                </View>
+                <Text style={[styles.brandText, { color: theme.text }]}>MindCare</Text>
+              </View>
 
-        {/* Form */}
-        <View style={styles.form}>
-          <CustomInput
-            label={t('auth.fullName')}
-            placeholder="John Doe"
-            value={fullName}
-            onChangeText={setFullName}
-            error={errors.fullName}
-          />
+              <Text style={[styles.title, { color: theme.text }]}>{t('auth.createAccount')}</Text>
+              <Text style={[styles.subtitle, { color: theme.mutedText }]}>
+                {t('auth.joinJourney')}
+              </Text>
+            </LinearGradient>
+          </Animated.View>
 
-          <CustomInput
-            label={t('auth.email')}
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            error={errors.email}
-          />
+          <Animated.View
+            pointerEvents="box-none"
+            style={{ opacity: formOpacity, transform: [{ translateY: formTranslateY }] }}
+          >
+            <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}> 
+            <CustomInput
+              label={t('auth.fullName')}
+              placeholder="John Doe"
+              value={fullName}
+              onChangeText={setFullName}
+              error={errors.fullName}
+            />
 
-          <CustomInput
-            label={t('auth.password')}
-            placeholder="At least 6 characters"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            error={errors.password}
-          />
+            <CustomInput
+              label={t('auth.email')}
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              error={errors.email}
+            />
 
-          <CustomInput
-            label={t('auth.confirmPassword')}
-            placeholder="Re-enter your password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            error={errors.confirmPassword}
-          />
+            <CustomInput
+              label={t('auth.password')}
+              placeholder="At least 6 characters"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              error={errors.password}
+            />
 
-          {/* Sign Up Button */}
-          <CustomButton
-            title={t('auth.createAccountButton')}
-            onPress={handleSignUp}
-            loading={loading}
-            disabled={loading}
-          />
-        </View>
+            <CustomInput
+              label={t('auth.confirmPassword')}
+              placeholder="Re-enter your password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              error={errors.confirmPassword}
+            />
 
-        {/* Sign In Link */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>{t('auth.alreadyAccount')} </Text>
-          <TouchableOpacity onPress={() => navigation.replace('SignIn')}>
-            <Text style={styles.link}>{t('auth.signIn')}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <CustomButton
+              title={t('auth.createAccountButton')}
+              onPress={handleSignUp}
+              loading={loading}
+              disabled={loading}
+            />
+
+            <CustomButton
+              title={t('auth.signIn')}
+              onPress={() => navigation.replace('SignIn')}
+              variant="secondary"
+            />
+            </View>
+          </Animated.View>
+
+          <Animated.View style={[styles.footer, { opacity: footerOpacity }]}>
+            <Ionicons name="sparkles-outline" size={16} color={theme.primary} />
+            <Text style={[styles.footerText, { color: theme.mutedText }]}> 
+              {t('auth.alreadyAccount')} 
+            </Text>
+            <TouchableOpacity onPress={() => navigation.replace('SignIn')}>
+              <Text style={[styles.link, { color: theme.primary }]}>{t('auth.signIn')}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+  },
+  bgCircleTop: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: '#E6F2FF',
+    top: -130,
+    right: -90,
+    opacity: 0.82,
+  },
+  bgCircleBottom: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: '#F1F7FF',
+    bottom: -170,
+    left: -110,
+    opacity: 0.9,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
-  header: {
-    marginTop: 40,
-    marginBottom: 32,
+  hero: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    shadowColor: '#1A3C5A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  brandRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 14,
   },
-  logo: {
-    fontSize: 36,
-    marginBottom: 12,
+  brandIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  brandText: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#1a1a1a',
+    letterSpacing: -0.4,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    fontSize: 15,
     lineHeight: 20,
   },
-  form: {
-    marginVertical: 16,
+  formCard: {
+    marginTop: 16,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    shadowColor: '#1A3C5A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 20,
+    marginTop: 16,
   },
   footerText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
+    marginLeft: 4,
   },
   link: {
     fontSize: 14,
-    color: '#667eea',
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
 

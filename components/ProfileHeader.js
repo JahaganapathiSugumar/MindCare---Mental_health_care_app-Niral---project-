@@ -61,8 +61,8 @@ const ProfileHeader = ({ fullName, email, photoURL, onPhotoPress, photoLoading =
 const styles = StyleSheet.create({
   wrapper: {
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 24,
+    marginTop: 12,
+    marginBottom: 22,
     paddingHorizontal: 20,
   },
   avatar: {
@@ -74,11 +74,11 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6AA9D9',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: '#1A3C5A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    elevation: 3,
     marginBottom: 12,
     overflow: 'hidden',
   },
@@ -93,8 +93,8 @@ const styles = StyleSheet.create({
   },
   changePhotoButton: {
     marginBottom: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: 12,
     backgroundColor: '#E6F3FF',
   },
@@ -104,9 +104,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   nameText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#183B56',
+    fontSize: 24,
+    fontWeight: '800',
     textAlign: 'center',
   },
   emailText: {

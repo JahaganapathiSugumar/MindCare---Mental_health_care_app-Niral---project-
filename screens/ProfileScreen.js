@@ -259,7 +259,7 @@ const ProfileScreen = ({ navigation }) => {
   if (loading) {
     return (
       <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color="#2A7FBF" />
+        <ActivityIndicator size="large" color="#4A90E2" />
         <Text style={[styles.loadingText, { color: theme.mutedText }]}>{t('profile.loading')}</Text>
       </SafeAreaView>
     );
@@ -381,7 +381,7 @@ const ProfileScreen = ({ navigation }) => {
           </View>
           {updatingNotifications ? (
             <View style={styles.notificationSavingWrap}>
-              <ActivityIndicator size="small" color="#2A7FBF" />
+              <ActivityIndicator size="small" color="#4A90E2" />
               <Text style={[styles.notificationSavingText, { color: theme.mutedText }]}>{t('profile.updatingPreference')}</Text>
             </View>
           ) : null}
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     width: 260,
     height: 260,
     borderRadius: 130,
-    backgroundColor: '#D7EEFF',
+    backgroundColor: '#E3F1FF',
     top: -120,
     right: -80,
     opacity: 0.8,
@@ -476,14 +476,14 @@ const styles = StyleSheet.create({
     width: 320,
     height: 320,
     borderRadius: 160,
-    backgroundColor: '#EAF6FF',
+    backgroundColor: '#F0F7FF',
     bottom: -170,
     left: -120,
     opacity: 0.9,
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 10,
     paddingBottom: 24,
   },
   topBar: {
@@ -577,8 +577,8 @@ const styles = StyleSheet.create({
   chatButton: {
     marginTop: 6,
     marginBottom: 8,
-    backgroundColor: '#2A7FBF',
-    borderRadius: 14,
+    backgroundColor: '#4A90E2',
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -596,12 +596,12 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     marginTop: 6,
-    backgroundColor: '#2B5F87',
-    borderRadius: 14,
+    backgroundColor: '#4A90E2',
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#2B5F87',
+    shadowColor: '#1A3C5A',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 16,
     shadowColor: '#113B57',
     shadowOffset: { width: 0, height: 10 },
@@ -680,10 +680,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#2A7FBF',
-    paddingVertical: 10,
+    backgroundColor: '#4A90E2',
+    paddingVertical: 11,
     paddingHorizontal: 18,
-    borderRadius: 10,
+    borderRadius: 12,
     minWidth: 84,
     alignItems: 'center',
   },

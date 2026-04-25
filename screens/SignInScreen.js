@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   View,
   Text,
   ScrollView,
@@ -9,19 +10,64 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirebaseInstance, ensureAuthInitialized } from '../firebase';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import { validateSignIn } from '../utils/validation';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../context/ThemeContext';
+import { radius, spacing } from '../utils/uiTokens';
 
 const SignInScreen = ({ navigation }) => {
   const { t } = useTranslation();
+  const { theme, isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const heroOpacity = useRef(new Animated.Value(0)).current;
+  const heroTranslateY = useRef(new Animated.Value(14)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formTranslateY = useRef(new Animated.Value(14)).current;
+  const footerOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.stagger(90, [
+      Animated.parallel([
+        Animated.timing(heroOpacity, {
+          toValue: 1,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+        Animated.timing(heroTranslateY, {
+          toValue: 0,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(formOpacity, {
+          toValue: 1,
+          duration: 340,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formTranslateY, {
+          toValue: 0,
+          duration: 340,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(footerOpacity, {
+        toValue: 1,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [footerOpacity, formOpacity, formTranslateY, heroOpacity, heroTranslateY]);
 
   const handleSignIn = async () => {
     // Reset errors
@@ -117,127 +163,203 @@ const SignInScreen = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}> 
+      {!isDark ? <View pointerEvents="none" style={styles.bgCircleTop} /> : null}
+      {!isDark ? <View pointerEvents="none" style={styles.bgCircleBottom} /> : null}
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.logo}>MindCare</Text>
-          <Text style={styles.title}>{t('auth.welcomeBack')}</Text>
-          <Text style={styles.subtitle}>
-            {t('auth.continueJourney')}
-          </Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="on-drag"
+        >
+          <Animated.View pointerEvents="box-none" style={{ opacity: heroOpacity, transform: [{ translateY: heroTranslateY }] }}>
+            <LinearGradient
+              colors={isDark ? ['#1A2129', '#121212'] : ['#EAF4FF', '#F7F9FC']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.hero, { borderColor: theme.border }]}
+            >
+              <View style={styles.brandRow}>
+                <View style={[styles.brandIcon, { backgroundColor: theme.card }]}> 
+                  <MaterialCommunityIcons name="brain" size={22} color={theme.primary} />
+                </View>
+                <Text style={[styles.brandText, { color: theme.text }]}>MindCare</Text>
+              </View>
 
-        {/* Form */}
-        <View style={styles.form}>
-          <CustomInput
-            label={t('auth.email')}
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            error={errors.email}
-          />
+              <Text style={[styles.title, { color: theme.text }]}>{t('auth.welcomeBack')}</Text>
+              <Text style={[styles.subtitle, { color: theme.mutedText }]}>
+                {t('auth.continueJourney')}
+              </Text>
+            </LinearGradient>
+          </Animated.View>
 
-          <CustomInput
-            label={t('auth.password')}
-            placeholder={t('auth.password')}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            error={errors.password}
-          />
+          <Animated.View
+            pointerEvents="box-none"
+            style={{ opacity: formOpacity, transform: [{ translateY: formTranslateY }] }}
+          >
+            <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}> 
+            <CustomInput
+              label={t('auth.email')}
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              error={errors.email}
+            />
 
-          {/* Forgot Password Link */}
-          <TouchableOpacity style={styles.forgotPasswordContainer}>
-            <Text style={styles.forgotPassword}>{t('auth.forgotPassword')}</Text>
-          </TouchableOpacity>
+            <CustomInput
+              label={t('auth.password')}
+              placeholder={t('auth.password')}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              error={errors.password}
+            />
 
-          {/* Sign In Button */}
-          <CustomButton
-            title={t('auth.signIn')}
-            onPress={handleSignIn}
-            loading={loading}
-            disabled={loading}
-          />
-        </View>
+            <TouchableOpacity
+              style={styles.forgotPasswordContainer}
+              onPress={() => navigation.navigate('ForgotPassword')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.forgotPassword, { color: theme.primary }]}>{t('auth.forgotPassword')}</Text>
+            </TouchableOpacity>
 
-        {/* Sign Up Link */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>{t('auth.noAccount')} </Text>
-          <TouchableOpacity onPress={() => navigation.replace('SignUp')}>
-            <Text style={styles.link}>{t('auth.signUp')}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <CustomButton
+              title={t('auth.signIn')}
+              onPress={handleSignIn}
+              loading={loading}
+              disabled={loading}
+            />
+
+            <CustomButton
+              title={t('auth.signUp')}
+              onPress={() => navigation.replace('SignUp')}
+              variant="secondary"
+            />
+            </View>
+          </Animated.View>
+
+          <Animated.View style={[styles.footer, { opacity: footerOpacity }]}>
+            <Ionicons name="shield-checkmark-outline" size={16} color={theme.success} />
+            <Text style={[styles.footerText, { color: theme.mutedText }]}> 
+              {t('auth.noAccount')} 
+            </Text>
+            <TouchableOpacity onPress={() => navigation.replace('SignUp')}>
+              <Text style={[styles.link, { color: theme.primary }]}>{t('auth.signUp')}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+  },
+  bgCircleTop: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: '#E6F2FF',
+    top: -130,
+    right: -90,
+    opacity: 0.82,
+  },
+  bgCircleBottom: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: '#F1F7FF',
+    bottom: -170,
+    left: -110,
+    opacity: 0.9,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
-  header: {
-    marginTop: 60,
-    marginBottom: 40,
+  hero: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    shadowColor: '#1A3C5A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  brandRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 14,
   },
-  logo: {
-    fontSize: 48,
-    marginBottom: 16,
+  brandIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  brandText: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#1a1a1a',
+    letterSpacing: -0.4,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    fontSize: 15,
     lineHeight: 20,
   },
-  form: {
-    marginVertical: 16,
+  formCard: {
+    marginTop: 16,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    shadowColor: '#1A3C5A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',
-    marginVertical: 8,
+    marginTop: 6,
   },
   forgotPassword: {
     fontSize: 13,
-    color: '#667eea',
-    fontWeight: '500',
+    fontWeight: '700',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 20,
+    marginTop: 16,
   },
   footerText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
+    marginLeft: 4,
   },
   link: {
     fontSize: 14,
-    color: '#667eea',
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
 

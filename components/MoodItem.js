@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#EAF2F8',
   },
@@ -63,9 +63,9 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   moodText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#244B67',
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'capitalize',
   },
   dateText: {

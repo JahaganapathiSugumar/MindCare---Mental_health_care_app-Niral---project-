@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   View,
   Text,
   ScrollView,
@@ -9,12 +10,17 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { getFirebaseInstance } from '../firebase';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import { validateEmail, getErrorMessage } from '../utils/validation';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../context/ThemeContext';
+import { radius, spacing } from '../utils/uiTokens';
 
 /**
  * ForgotPasswordScreen - Allows users to reset their password
@@ -28,10 +34,62 @@ import { useTranslation } from 'react-i18next';
  */
 const ForgotPasswordScreen = ({ navigation }) => {
   const { t } = useTranslation();
+  const { theme, isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [emailSent, setEmailSent] = useState(false);
+  const heroOpacity = useRef(new Animated.Value(0)).current;
+  const heroTranslateY = useRef(new Animated.Value(14)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formTranslateY = useRef(new Animated.Value(14)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current;
+  const successTranslateY = useRef(new Animated.Value(14)).current;
+
+  useEffect(() => {
+    if (emailSent) {
+      Animated.parallel([
+        Animated.timing(successOpacity, {
+          toValue: 1,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+        Animated.timing(successTranslateY, {
+          toValue: 0,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
+
+    Animated.stagger(90, [
+      Animated.parallel([
+        Animated.timing(heroOpacity, {
+          toValue: 1,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+        Animated.timing(heroTranslateY, {
+          toValue: 0,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(formOpacity, {
+          toValue: 1,
+          duration: 340,
+          useNativeDriver: true,
+        }),
+        Animated.timing(formTranslateY, {
+          toValue: 0,
+          duration: 340,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [emailSent, formOpacity, formTranslateY, heroOpacity, heroTranslateY, successOpacity, successTranslateY]);
 
   const handleSendResetEmail = async () => {
     // Reset errors
@@ -82,153 +140,216 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
   if (emailSent) {
     return (
-      <View style={styles.container}>
-        <View style={styles.successContainer}>
-          <Text style={styles.successIcon}>✉️</Text>
-          <Text style={styles.successTitle}>{t('auth.checkEmailTitle', { defaultValue: 'Check Your Email' })}</Text>
-          <Text style={styles.successText}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}> 
+        <Animated.View
+          pointerEvents="box-none"
+          style={[
+            styles.successContainer,
+            {
+              backgroundColor: theme.background,
+              opacity: successOpacity,
+              transform: [{ translateY: successTranslateY }],
+            },
+          ]}
+        >
+          <View style={[styles.successIconWrap, { backgroundColor: theme.secondary || '#EAF4FF' }]}>
+            <Ionicons name="mail-open-outline" size={30} color={theme.primary} />
+          </View>
+          <Text style={[styles.successTitle, { color: theme.text }]}>{t('auth.checkEmailTitle', { defaultValue: 'Check Your Email' })}</Text>
+          <Text style={[styles.successText, { color: theme.mutedText }]}>
             {t('auth.checkEmailBody', { defaultValue: "We've sent password reset instructions to {{email}}", email })}
           </Text>
-          <CustomButton
-            title={t('auth.backToSignIn', { defaultValue: 'Back to Sign In' })}
-            onPress={() => navigation.replace('SignIn')}
-          />
-        </View>
-      </View>
+          <View style={styles.successActionWrap}>
+            <CustomButton
+              title={t('auth.backToSignIn', { defaultValue: 'Back to Sign In' })}
+              onPress={() => navigation.replace('SignIn')}
+            />
+          </View>
+        </Animated.View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}> 
+      {!isDark ? <View pointerEvents="none" style={styles.bgCircleTop} /> : null}
+      {!isDark ? <View pointerEvents="none" style={styles.bgCircleBottom} /> : null}
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="on-drag"
+        >
+          <Animated.View pointerEvents="box-none" style={{ opacity: heroOpacity, transform: [{ translateY: heroTranslateY }] }}>
+            <LinearGradient
+              colors={isDark ? ['#1A2129', '#121212'] : ['#EAF4FF', '#F7F9FC']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.hero, { borderColor: theme.border }]}
+            >
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="arrow-back" size={18} color={theme.text} />
+                <Text style={[styles.backButtonText, { color: theme.text }]}>{t('common.back')}</Text>
+              </TouchableOpacity>
+
+              <Text style={[styles.title, { color: theme.text }]}>{t('auth.resetPasswordTitle', { defaultValue: 'Reset Password' })}</Text>
+              <Text style={[styles.subtitle, { color: theme.mutedText }]}> 
+                {t('auth.resetPasswordSubtitle', { defaultValue: 'Enter your email to receive password reset instructions' })}
+              </Text>
+            </LinearGradient>
+          </Animated.View>
+
+          <Animated.View
+            pointerEvents="box-none"
+            style={{ opacity: formOpacity, transform: [{ translateY: formTranslateY }] }}
           >
-            <Text style={styles.backButtonText}>← {t('common.back')}</Text>
-          </TouchableOpacity>
-          
-          <Text style={styles.title}>{t('auth.resetPasswordTitle', { defaultValue: 'Reset Password' })}</Text>
-          <Text style={styles.subtitle}>
-            {t('auth.resetPasswordSubtitle', { defaultValue: 'Enter your email to receive password reset instructions' })}
-          </Text>
-        </View>
+            <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}> 
+            <CustomInput
+              label={t('auth.email', { defaultValue: 'Email Address' })}
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              error={error}
+            />
 
-        {/* Form */}
-        <View style={styles.form}>
-          <CustomInput
-            label={t('auth.email', { defaultValue: 'Email Address' })}
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            error={error}
-          />
+            <CustomButton
+              title={t('auth.sendResetEmail', { defaultValue: 'Send Reset Email' })}
+              onPress={handleSendResetEmail}
+              loading={loading}
+              disabled={loading}
+            />
 
-          <CustomButton
-            title={t('auth.sendResetEmail', { defaultValue: 'Send Reset Email' })}
-            onPress={handleSendResetEmail}
-            loading={loading}
-            disabled={loading}
-          />
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>{t('auth.rememberPassword', { defaultValue: 'Remember your password?' })} </Text>
-          <TouchableOpacity onPress={() => navigation.replace('SignIn')}>
-            <Text style={styles.link}>{t('auth.signIn')}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <CustomButton
+              title={t('auth.signIn')}
+              onPress={() => navigation.replace('SignIn')}
+              variant="secondary"
+            />
+            </View>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+  },
+  bgCircleTop: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: '#E6F2FF',
+    top: -130,
+    right: -90,
+    opacity: 0.82,
+  },
+  bgCircleBottom: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: '#F1F7FF',
+    bottom: -170,
+    left: -110,
+    opacity: 0.9,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
-  header: {
-    marginTop: 20,
-    marginBottom: 32,
+  hero: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    shadowColor: '#1A3C5A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   backButton: {
     alignSelf: 'flex-start',
-    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginBottom: 16,
   },
   backButtonText: {
     fontSize: 14,
-    color: '#667eea',
-    fontWeight: '600',
+    fontWeight: '700',
+    marginLeft: 6,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#1a1a1a',
+    letterSpacing: -0.4,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 21,
   },
-  form: {
-    marginVertical: 16,
+  formCard: {
+    marginTop: 16,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    shadowColor: '#1A3C5A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   successContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
-  successIcon: {
-    fontSize: 48,
+  successIconWrap: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#D7E4F2',
   },
   successTitle: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#1a1a1a',
+    fontWeight: '800',
     marginBottom: 12,
     textAlign: 'center',
   },
   successText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 15,
     textAlign: 'center',
     marginBottom: 24,
-    lineHeight: 20,
+    lineHeight: 21,
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  footerText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  link: {
-    fontSize: 14,
-    color: '#667eea',
-    fontWeight: '600',
+  successActionWrap: {
+    width: '100%',
+    maxWidth: 320,
   },
 });
 
