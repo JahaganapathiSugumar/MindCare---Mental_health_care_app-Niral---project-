@@ -208,26 +208,87 @@ const SignUpScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="on-drag"
         >
-          <Animated.View pointerEvents="box-none" style={{ opacity: heroOpacity, transform: [{ translateY: heroTranslateY }] }}>
-            <LinearGradient
-              colors={isDark ? ['#1A2129', '#121212'] : ['#EAF4FF', '#F7F9FC']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.hero, { borderColor: theme.border }]}
-            >
-              <View style={styles.brandRow}>
-                <View style={[styles.brandIcon, { backgroundColor: theme.card }]}> 
-                  <MaterialCommunityIcons name="heart-pulse" size={22} color={theme.primary} />
-                </View>
-                <Text style={[styles.brandText, { color: theme.text }]}>MindCare</Text>
-              </View>
+          <Animated.View
+  pointerEvents="box-none"
+  style={{
+    opacity: heroOpacity,
+    transform: [{ translateY: heroTranslateY }],
+    alignItems: 'center',
+    width: '100%',
+  }}
+>
+  <LinearGradient
+    colors={isDark ? ['#1A2129', '#121212'] : ['#EAF4FF', '#F7F9FC']}
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 1 }}
+    style={[
+      styles.hero,
+      {
+        borderColor: theme.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+    ]}
+  >
+    <View
+      style={[
+        styles.brandRow,
+        { justifyContent: 'center', alignItems: 'center' },
+      ]}
+    >
+      <View style={[styles.brandIcon, { backgroundColor: theme.card }]}>
+        <MaterialCommunityIcons
+          name="heart-pulse"
+          size={22}
+          color={theme.primary}
+        />
+      </View>
 
-              <Text style={[styles.title, { color: theme.text }]}>{t('auth.createAccount')}</Text>
-              <Text style={[styles.subtitle, { color: theme.mutedText }]}>
-                {t('auth.joinJourney')}
-              </Text>
-            </LinearGradient>
-          </Animated.View>
+      {/* 🔥 Bigger brand name */}
+      <Text
+        style={[
+          styles.brandText,
+          {
+            color: theme.text,
+            fontSize: 28,
+            fontWeight: '800',
+            letterSpacing: 1,
+            textAlign: 'center',
+          },
+        ]}
+      >
+        MindCare
+      </Text>
+    </View>
+
+    {/* 👇 Smaller than brand */}
+    <Text
+      style={[
+        styles.title,
+        {
+          color: theme.text,
+          fontSize: 20,
+          fontWeight: '600',
+          textAlign: 'center',
+        },
+      ]}
+    >
+      {t('auth.createAccount')}
+    </Text>
+
+    <Text
+      style={[
+        styles.subtitle,
+        {
+          color: theme.mutedText,
+          textAlign: 'center',
+        },
+      ]}
+    >
+      {t('auth.joinJourney')}
+    </Text>
+  </LinearGradient>
+</Animated.View>
 
           <Animated.View
             pointerEvents="box-none"
@@ -274,12 +335,6 @@ const SignUpScreen = ({ navigation }) => {
               onPress={handleSignUp}
               loading={loading}
               disabled={loading}
-            />
-
-            <CustomButton
-              title={t('auth.signIn')}
-              onPress={() => navigation.replace('SignIn')}
-              variant="secondary"
             />
             </View>
           </Animated.View>

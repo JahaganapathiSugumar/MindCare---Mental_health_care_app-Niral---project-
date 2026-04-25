@@ -177,26 +177,64 @@ const SignInScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="on-drag"
         >
-          <Animated.View pointerEvents="box-none" style={{ opacity: heroOpacity, transform: [{ translateY: heroTranslateY }] }}>
-            <LinearGradient
-              colors={isDark ? ['#1A2129', '#121212'] : ['#EAF4FF', '#F7F9FC']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.hero, { borderColor: theme.border }]}
-            >
-              <View style={styles.brandRow}>
-                <View style={[styles.brandIcon, { backgroundColor: theme.card }]}> 
-                  <MaterialCommunityIcons name="brain" size={22} color={theme.primary} />
-                </View>
-                <Text style={[styles.brandText, { color: theme.text }]}>MindCare</Text>
-              </View>
+          <Animated.View
+  pointerEvents="box-none"
+  style={{
+    opacity: heroOpacity,
+    transform: [{ translateY: heroTranslateY }],
+    alignItems: 'center',           // ✅ center horizontally
+    justifyContent: 'center',       // ✅ center vertically (if parent allows)
+    width: '100%',
+  }}
+>
+  <LinearGradient
+    colors={isDark ? ['#1A2129', '#121212'] : ['#EAF4FF', '#F7F9FC']}
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 1 }}
+    style={[
+      styles.hero,
+      {
+        borderColor: theme.border,
+        alignItems: 'center',       // ✅ center all content inside
+        justifyContent: 'center',
+      }
+    ]}
+  >
+    <View
+      style={[
+        styles.brandRow,
+        {
+          justifyContent: 'center', // ✅ center row content
+          alignItems: 'center'
+        }
+      ]}
+    >
+      <View style={[styles.brandIcon, { backgroundColor: theme.card }]}>
+        <MaterialCommunityIcons name="brain" size={22} color={theme.primary} />
+      </View>
 
-              <Text style={[styles.title, { color: theme.text }]}>{t('auth.welcomeBack')}</Text>
-              <Text style={[styles.subtitle, { color: theme.mutedText }]}>
-                {t('auth.continueJourney')}
-              </Text>
-            </LinearGradient>
-          </Animated.View>
+      <Text style={[styles.brandText, { color: theme.text, textAlign: 'center' }]}>
+        MindCare
+      </Text>
+    </View>
+
+    <Text style={[styles.title, { color: theme.text, fontSize: 20, fontWeight: '600',textAlign: 'center' }]}>
+      {t('auth.welcomeBack')}
+    </Text>
+
+    <Text
+      style={[
+        styles.subtitle,
+        {
+          color: theme.mutedText,
+          textAlign: 'center'       // ✅ center text
+        }
+      ]}
+    >
+      {t('auth.continueJourney')}
+    </Text>
+  </LinearGradient>
+</Animated.View>
 
           <Animated.View
             pointerEvents="box-none"
@@ -236,11 +274,6 @@ const SignInScreen = ({ navigation }) => {
               disabled={loading}
             />
 
-            <CustomButton
-              title={t('auth.signUp')}
-              onPress={() => navigation.replace('SignUp')}
-              variant="secondary"
-            />
             </View>
           </Animated.View>
 

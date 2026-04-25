@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import i18n from '../i18n';
 
-const ENV_API_URL = process.env.EXPO_PUBLIC_API_URL || process.env.REACT_APP_API_URL;
+const ENV_API_URL = 'https://mindcare-mental-health-care-app-niral.onrender.com';
 
 const getExpoHost = () => {
   const hostUri =
