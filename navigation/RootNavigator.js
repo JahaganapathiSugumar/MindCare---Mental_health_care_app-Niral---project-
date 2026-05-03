@@ -13,6 +13,7 @@ import MoodScreen from '../screens/MoodScreen';
 import ReportScreen from '../screens/ReportScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LanguageSelectionScreen from '../screens/LanguageSelectionScreen';
+import ExerciseScreen from '../screens/ExerciseScreen';
 import { initializeProactiveNotifications } from '../services/notifications';
 import { getHasSeenOnboarding } from '../utils/storage';
 import { useLanguage } from '../context/LanguageContext';
@@ -185,6 +186,7 @@ const RootNavigator = () => {
             {hasSelectedLanguage ? <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} /> : null}
             {hasSelectedLanguage ? <Stack.Screen name="Profile" component={ProfileScreen} /> : null}
             {hasSelectedLanguage ? <Stack.Screen name="Chat" component={ChatScreen} /> : null}
+            {hasSelectedLanguage ? <Stack.Screen name="Exercise" component={ExerciseScreen} /> : null}
             {hasSelectedLanguage ? <Stack.Screen name="Mood" component={MoodScreen} /> : null}
             {hasSelectedLanguage ? <Stack.Screen name="Report" component={ReportScreen} /> : null}
           </>

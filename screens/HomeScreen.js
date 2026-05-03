@@ -474,7 +474,7 @@ const HomeScreen = ({ navigation }) => {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={['#5BA3F5', '#4A90E2']}
+                colors={['#5BA3F5', '#9c9c9c']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.actionCardGradient}
@@ -502,27 +502,43 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.actionCardSubtext}>{t('home.fromAIChats')}</Text>
               </LinearGradient>
             </TouchableOpacity>
-          </View>
 
-          <TouchableOpacity
-            style={styles.reportActionButton}
-            onPress={() => handleNavigate('Report')}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={['#2C9FA3', '#247D86']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.reportActionGradient}
+            {/* Wellness/Exercise Button */}
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => handleNavigate('Exercise')}
+              activeOpacity={0.85}
             >
-              <MaterialCommunityIcons name="file-document-outline" size={22} color="#FFF" />
-              <View style={styles.reportActionTextWrap}>
-                <Text style={styles.reportActionTitle}>{t('report.generateCta', { defaultValue: 'Generate Daily Report' })}</Text>
-                <Text style={styles.reportActionSubtitle}>{t('report.subtitle', { defaultValue: 'AI summary + PDF export for today' })}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={['#A94BA3', '#9C3E9E']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.actionCardGradient}
+              >
+                <MaterialCommunityIcons name="spa" size={32} color="#FFF" />
+                <Text style={styles.actionCardText}>Wellness</Text>
+                <Text style={styles.actionCardSubtext}>Exercises</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Generate Report Button */}
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => handleNavigate('Report')}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['#2C9FA3', '#247D86']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.actionCardGradient}
+              >
+                <MaterialCommunityIcons name="file-document-outline" size={32} color="#FFF" />
+                <Text style={styles.actionCardText}>{t('report.generateCta', { defaultValue: 'Generate' })}</Text>
+                <Text style={styles.actionCardSubtext}>{t('report.subtitle', { defaultValue: 'Daily Report' })}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Mood Summary Section */}
@@ -906,6 +922,8 @@ const styles = StyleSheet.create({
   actionsGrid: {
     flexDirection: 'row',
     gap: 14,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   reportActionButton: {
     marginTop: 12,
@@ -940,14 +958,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   actionCard: {
-    flex: 1,
+    width: '47%',
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
   },
   actionCardGradient: {
     paddingVertical: 24,

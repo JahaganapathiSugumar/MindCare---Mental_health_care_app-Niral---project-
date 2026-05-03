@@ -19,7 +19,15 @@
     "forgotPassword": "पासवर्ड भूल गए?",
     "signIn": "साइन इन",
     "signUp": "साइन अप",
-    "createAccountButton": "खाता बनाएं"
+    "createAccountButton": "खाता बनाएं",
+    "noAccount": "खाता नहीं है?",
+    "alreadyAccount": "पहले से खाता है?",
+    "signInFailed": "साइन इन विफल",
+    "signUpFailed": "साइन अप विफल",
+    "orContinueWith": "या इसके साथ जारी रखें",
+    "googleNotConfigured": "Google साइन-इन कॉन्फ़िगर नहीं है। ईमेल/पासवर्ड लॉगिन आजमाएं।",
+    "error": "त्रुटि",
+    "genericError": "कृपया पुनः प्रयास करें"
   },
   "home": {
     "quickActions": "त्वरित क्रियाएं",
@@ -37,6 +45,22 @@
     "title": "AI मूड इनसाइट्स",
     "subtitle": "मूड केवल AI चैट संदेशों से पहचाना जाता है।",
     "startAIChat": "AI चैट शुरू करें"
+  },
+  "exercise": {
+    "title": "कल्याण अभ्यास",
+    "subtitle": "तनाव और चिंता को कम करने के लिए निर्देशित अभ्यास",
+    "breathingExercises": "श्वास प्रणायाम",
+    "groundingTechniques": "ग्राउंडिंग तकनीकें",
+    "calmBreathing": "शांत श्वास",
+    "deepCalm": "गहरी शांति",
+    "grounding": "5-4-3-2-1 ग्राउंडिंग",
+    "beginnerLevel": "शुरुआत",
+    "intermediateLevel": "मध्यवर्ती",
+    "startExercise": "अभ्यास शुरू करें",
+    "exerciseComplete": "शानदार!",
+    "inhale": "सांस लें",
+    "hold": "रोकें",
+    "exhale": "सांस छोड़ें"
   },
   "profile": {
     "profileInfo": "प्रोफ़ाइल जानकारी",

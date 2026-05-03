@@ -19,7 +19,15 @@
     "forgotPassword": "கடவுச்சொல்லை மறந்துவிட்டீர்களா?",
     "signIn": "உள்நுழை",
     "signUp": "பதிவுசெய்",
-    "createAccountButton": "கணக்கு உருவாக்கு"
+    "createAccountButton": "கணக்கு உருவாக்கு",
+    "noAccount": "கணக்கு இல்லையா?",
+    "alreadyAccount": "ஆற்றல் கணக்கு உள்ளதா?",
+    "signInFailed": "உள்நுழைவு தோல்வி",
+    "signUpFailed": "பதிவு தோல்வி",
+    "orContinueWith": "அல்லது இதன் மூலம் தொடரவும்",
+    "googleNotConfigured": "Google உள்நுழைவு கட்டமைக்கப்படவில்லை। மின்னஞ்சல்/கடவுச்சொல் உள்நுழைவை முயலவும்.",
+    "error": "பிழை",
+    "genericError": "மீண்டும் முயலவும்"
   },
   "home": {
     "quickActions": "விரைவு செயல்கள்",
@@ -37,8 +45,22 @@
     "title": "AI மனநிலை பார்வைகள்",
     "subtitle": "AI அரட்டையிலிருந்து மட்டுமே மனநிலை கண்டறியப்படும்.",
     "startAIChat": "AI அரட்டை தொடங்கு"
-  },
-  "profile": {
+  },  "exercise": {
+    "title": "wellness வ்யாயாமங்கள்",
+    "subtitle": "மன அழுத்தம் மற்றும் கவலையைக் குறைக்க வழிகாட்டப்பட்ட பயிற்சிகள்",
+    "breathingExercises": "சுவாச பயிற்சிகள்",
+    "groundingTechniques": "நிலைநிற்கும் நுட்பங்கள்",
+    "calmBreathing": "शांत श्वास",
+    "deepCalm": "ஆழ்ந்த அமைதி",
+    "grounding": "5-4-3-2-1 நிலைநிற்கும்",
+    "beginnerLevel": "தொடக்கநிலை",
+    "intermediateLevel": "இடைநிலை",
+    "startExercise": "பயிற்சியைத் தொடங்கு",
+    "exerciseComplete": "அருமை!",
+    "inhale": "உள்ளே உச்சவாயு",
+    "hold": "வைத்திருக்கவும்",
+    "exhale": "வெளியே உச்சவாயு"
+  },  "profile": {
     "profileInfo": "சுயவிவர தகவல்",
     "editProfile": "சுயவிவரத்தை திருத்து",
     "notifications": "அறிவிப்புகள்",

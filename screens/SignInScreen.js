@@ -17,10 +17,14 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirebaseInstance, ensureAuthInitialized } from '../firebase';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import { validateSignIn } from '../utils/validation';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import { radius, spacing } from '../utils/uiTokens';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+import { signInWithGoogle, getCurrentUser } from '../services/authService';
 
 const SignInScreen = ({ navigation }) => {
   const { t } = useTranslation();
@@ -28,12 +32,22 @@ const SignInScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const heroTranslateY = useRef(new Animated.Value(14)).current;
   const formOpacity = useRef(new Animated.Value(0)).current;
   const formTranslateY = useRef(new Animated.Value(14)).current;
   const footerOpacity = useRef(new Animated.Value(0)).current;
+
+  // Initialize Google OAuth
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  });
+
+  WebBrowser.maybeCompleteAuthSession();
 
   useEffect(() => {
     Animated.stagger(90, [
@@ -68,6 +82,50 @@ const SignInScreen = ({ navigation }) => {
       }),
     ]).start();
   }, [footerOpacity, formOpacity, formTranslateY, heroOpacity, heroTranslateY]);
+
+  const handleGoogleSignIn = async () => {
+    if (!googlePromptAsync) {
+      Alert.alert(
+        t('auth.error', { defaultValue: 'Error' }),
+        t('auth.googleNotConfigured', { defaultValue: 'Google Sign-In is not configured. Please try email/password login.' })
+      );
+      return;
+    }
+
+    setGoogleLoading(true);
+    try {
+      console.log('[SignIn] Initiating Google Sign-In...');
+      const result = await signInWithGoogle(googlePromptAsync);
+
+      if (!result.success) {
+        // Don't show alert for user cancellation
+        if (result.error === 'cancelled') {
+          console.log('[SignIn] Google sign-in cancelled by user');
+          setGoogleLoading(false);
+          return;
+        }
+
+        // Show error for other failures
+        Alert.alert(
+          t('auth.signInFailed', { defaultValue: 'Sign In Failed' }),
+          result.message || t('auth.genericError', { defaultValue: 'Please try again' })
+        );
+        setGoogleLoading(false);
+        return;
+      }
+
+      console.log('[SignIn] Google sign-in successful, navigating to home...');
+      // Navigation happens automatically via Firebase listener in App.js
+    } catch (error) {
+      console.error('[SignIn] Google sign-in error:', error.message);
+      Alert.alert(
+        t('auth.signInFailed', { defaultValue: 'Sign In Failed' }),
+        t('auth.genericError', { defaultValue: 'Please try again' })
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSignIn = async () => {
     // Reset errors
@@ -271,7 +329,21 @@ const SignInScreen = ({ navigation }) => {
               title={t('auth.signIn')}
               onPress={handleSignIn}
               loading={loading}
-              disabled={loading}
+              disabled={loading || googleLoading}
+            />
+
+            <View style={styles.dividerContainer}>
+              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+              <Text style={[styles.dividerText, { color: theme.mutedText }]}>
+                {t('auth.orContinueWith', { defaultValue: 'or continue with' })}
+              </Text>
+              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            </View>
+
+            <GoogleSignInButton
+              onPress={handleGoogleSignIn}
+              loading={googleLoading}
+              disabled={loading || googleLoading || !googlePromptAsync}
             />
 
             </View>
@@ -393,6 +465,21 @@ const styles = StyleSheet.create({
   link: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14,
+    gap: 10,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 
