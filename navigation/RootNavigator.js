@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View, ActivityIndicator, Text } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
@@ -12,6 +13,7 @@ import ChatScreen from '../screens/ChatScreen';
 import MoodScreen from '../screens/MoodScreen';
 import ReportScreen from '../screens/ReportScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import PersonalizationScreen from '../screens/PersonalizationScreen';
 import LanguageSelectionScreen from '../screens/LanguageSelectionScreen';
 import ExerciseScreen from '../screens/ExerciseScreen';
 import { initializeProactiveNotifications } from '../services/notifications';
@@ -29,6 +31,8 @@ const RootNavigator = () => {
   const [authError, setAuthError] = useState(null);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [onboardingLoading, setOnboardingLoading] = useState(true);
+  const [personalizationCompleted, setPersonalizationCompleted] = useState(false);
+  const [personalizationLoading, setPersonalizationLoading] = useState(true);
 
   useEffect(() => {
     const bootstrapOnboardingState = async () => {
@@ -44,6 +48,22 @@ const RootNavigator = () => {
     };
 
     bootstrapOnboardingState();
+  }, []);
+
+  useEffect(() => {
+    const bootstrapPersonalizationState = async () => {
+      try {
+        const personalizationStatus = await AsyncStorage.getItem('personalizationCompleted');
+        setPersonalizationCompleted(personalizationStatus === 'true');
+      } catch (error) {
+        console.warn('[RootNavigator] Failed personalization state read:', error?.message || error);
+        setPersonalizationCompleted(false);
+      } finally {
+        setPersonalizationLoading(false);
+      }
+    };
+
+    bootstrapPersonalizationState();
   }, []);
 
   useEffect(() => {
@@ -140,7 +160,7 @@ const RootNavigator = () => {
     bootstrapNotifications();
   }, [language, t, user?.uid, user?.displayName, user?.email]);
 
-  if (loading || onboardingLoading || !isLanguageReady) {
+  if (loading || onboardingLoading || personalizationLoading || !isLanguageReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' }}>
         <ActivityIndicator size="large" color="#007AFF" />
@@ -150,7 +170,7 @@ const RootNavigator = () => {
   }
 
   const initialRouteName = user
-    ? (!hasSelectedLanguage ? 'LanguageSelection' : (hasSeenOnboarding ? 'Home' : 'Onboarding'))
+    ? (!hasSelectedLanguage ? 'LanguageSelection' : (hasSeenOnboarding ? (personalizationCompleted ? 'Home' : 'Personalization') : 'Onboarding'))
     : 'SignIn';
 
   return (
@@ -181,6 +201,12 @@ const RootNavigator = () => {
                 initialParams={{
                   userName: user.displayName || user.email?.split('@')?.[0] || t('profile.mindcareUser'),
                 }}
+              />
+            ) : null}
+            {hasSelectedLanguage && hasSeenOnboarding && !personalizationCompleted ? (
+              <Stack.Screen
+                name="Personalization"
+                component={PersonalizationScreen}
               />
             ) : null}
             {hasSelectedLanguage ? <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} /> : null}

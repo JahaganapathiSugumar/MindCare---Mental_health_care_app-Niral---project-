@@ -801,7 +801,7 @@ app.post('/chat', async (req, res) => {
       });
     }
 
-    const { userId, message, language = 'en' } = req.body;
+    const { userId, message, language = 'en', role, concern, supportStyle } = req.body;
     const languageName = getLanguageName(language);
 
     // Validate input
@@ -840,16 +840,41 @@ app.post('/chat', async (req, res) => {
     // ===== RETRIEVE RAG CONTEXT =====
     const ragData = await retrieveRagContext(message.trim(), userId);
 
-    const prompt = `
+    // ===== BUILD PERSONALIZED SYSTEM PROMPT =====
+    let personalizedSystemPrompt = SYSTEM_PROMPT;
+
+    if (role || supportStyle) {
+      const roleContext = {
+        student: 'You understand the student lifestyle with exam stress, time management challenges, and academic pressures.',
+        professional: 'You understand work stress, professional challenges, work-life balance, and career pressures.',
+        homemaker: 'You understand the challenges of managing household responsibilities and family dynamics.',
+      };
+
+      const styleContext = {
+        calm: 'Respond with a calm, supportive tone. Use soothing language and encourage self-compassion.',
+        motivational: 'Respond with an uplifting, motivational tone. Use encouraging language and inspire action.',
+        practical: 'Respond with practical, actionable advice. Focus on specific techniques and strategies.',
+      };
+
+      personalizedSystemPrompt = `
 You are a supportive mental health assistant.
 Respond ONLY in ${languageName}.
 Be empathetic and simple.
 
-KNOWLEDGE BASE CONTEXT:
-${ragData.sources && ragData.sources.length > 0
-      ? ragData.sources.map((src, idx) => `${idx + 1}. ${src}`).join('\n')
-      : 'No specific knowledge base content available for this query.'}
+USER PROFILE:
+${role ? `- Role: ${roleContext[role] || 'General user'}` : ''}
+${concern ? `- Main concern: ${concern}` : ''}
+${supportStyle ? `- Support style preference: ${styleContext[supportStyle] || 'Balanced support'}` : ''}
 
+${roleContext[role] ? `Remember this context when providing examples and tailoring advice to their lifestyle.` : ''}
+${styleContext[supportStyle] ? `Always match this tone and approach in your responses.` : ''}
+`;
+    }
+
+    const prompt = `
+${ragData.sources && ragData.sources.length > 0
+      ? `KNOWLEDGE BASE CONTEXT:\n${ragData.sources.map((src, idx) => `${idx + 1}. ${src}`).join('\n')}\n\n`
+      : ''}
 User: ${message.trim()}
 `;
 
@@ -859,7 +884,7 @@ User: ${message.trim()}
         messages: [
           {
             role: 'system',
-            content: SYSTEM_PROMPT,
+            content: personalizedSystemPrompt,
           },
           {
             role: 'user',

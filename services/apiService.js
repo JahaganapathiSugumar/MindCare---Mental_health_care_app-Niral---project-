@@ -2,6 +2,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import i18n from '../i18n';
+import { getPersonalization } from './profileService';
 
 const ENV_API_URL = 'https://mindcare-mental-health-care-app-niral.onrender.com';
 
@@ -52,11 +53,22 @@ let insightsEndpointUnavailable = false;
 // Send message to AI backend
 export const sendMessageToAI = async (userId, message, language = i18n.language || 'en') => {
   try {
-    const response = await apiClient.post('/chat', {
+    // Get user personalization data
+    const personalization = await getPersonalization();
+
+    const payload = {
       userId,
       message,
       language,
-    });
+      // Include personalization data if available
+      ...(personalization && {
+        role: personalization.role,
+        concern: personalization.concern,
+        supportStyle: personalization.supportStyle,
+      }),
+    };
+
+    const response = await apiClient.post('/chat', payload);
 
     if (response.status === 200 && response.data?.response) {
       return {
@@ -71,6 +83,12 @@ export const sendMessageToAI = async (userId, message, language = i18n.language 
           recommendProfessionalHelp: false,
           keywordHits: [],
           score: 0,
+        },
+        ragData: response.data.ragData || {
+          usingRag: false,
+          sources: [],
+          relevanceScores: [],
+          contextChunks: [],
         },
       };
     }

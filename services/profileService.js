@@ -474,6 +474,89 @@ export const updateProfilePhoto = async (photoURL) => {
   if (!db) {
     throw new Error('Firestore is not initialized.');
   }
+};
+
+/**
+ * Get personalization data for the user
+ */
+export const getPersonalization = async () => {
+  try {
+    const auth = await ensureAuthInitialized();
+    const { db } = getFirebaseInstance();
+
+    if (!auth?.currentUser || !db) {
+      return null;
+    }
+
+    const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+    if (!userDoc.exists()) {
+      return null;
+    }
+
+    const data = userDoc.data();
+    return {
+      role: data.role,
+      concern: data.concern,
+      supportStyle: data.supportStyle,
+    };
+  } catch (error) {
+    console.error('[profileService] Failed to get personalization:', error);
+    return null;
+  }
+};
+
+/**
+ * Check if personalization is completed
+ */
+export const isPersonalizationCompleted = async () => {
+  try {
+    const auth = await ensureAuthInitialized();
+    const { db } = getFirebaseInstance();
+
+    if (!auth?.currentUser || !db) {
+      return false;
+    }
+
+    const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+    return userDoc.exists() && userDoc.data().personalizationCompleted === true;
+  } catch (error) {
+    console.error('[profileService] Failed to check personalization status:', error);
+    return false;
+  }
+};
+
+/**
+ * Update personalization preferences
+ */
+export const updatePersonalization = async (updates) => {
+  try {
+    const auth = await ensureAuthInitialized();
+    const { db } = getFirebaseInstance();
+
+    if (!auth?.currentUser || !db) {
+      throw new Error('User not authenticated or Firestore not initialized');
+    }
+
+    const userRef = doc(db, 'users', auth.currentUser.uid);
+    const personalizationData = {
+      role: updates.role,
+      concern: updates.concern,
+      supportStyle: updates.supportStyle,
+      personalizationCompleted: true,
+      personalizationCompletedAt: new Date().toISOString(),
+    };
+
+    await setDoc(userRef, personalizationData, { merge: true });
+
+    // Also update local storage
+    await AsyncStorage.setItem('userPersonalization', JSON.stringify(personalizationData));
+
+    return personalizationData;
+  } catch (error) {
+    console.error('[profileService] Failed to update personalization:', error);
+    throw error;
+  }
+};
 
   const userId = auth.currentUser.uid;
   const userDocRef = doc(db, 'users', userId);

@@ -26,6 +26,8 @@ import {
   updateNotificationPreference,
   updateProfileFullName,
   updateProfilePhoto,
+  getPersonalization,
+  updatePersonalization,
 } from '../services/profileService';
 import { getFullNameValidationError } from '../utils/validation';
 import {
@@ -52,6 +54,10 @@ const ProfileScreen = ({ navigation }) => {
   const [updatingPhoto, setUpdatingPhoto] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [updatingNotifications, setUpdatingNotifications] = useState(false);
+  const [personalization, setPersonalization] = useState(null);
+  const [editPersonalizationVisible, setEditPersonalizationVisible] = useState(false);
+  const [editPersonalization, setEditPersonalization] = useState({ role: null, concern: null, supportStyle: null });
+  const [savingPersonalization, setSavingPersonalization] = useState(false);
   const themeFadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -73,10 +79,12 @@ const ProfileScreen = ({ navigation }) => {
     try {
       const profileData = await fetchProfileData();
       const moodData = await fetchMoodHistory(profileData.userId);
+      const personalizationData = await getPersonalization();
 
       setProfile(profileData);
       setNotificationsEnabled(profileData.notificationsEnabled !== false);
       setMoods(moodData);
+      setPersonalization(personalizationData);
     } catch (error) {
       console.error('[Profile] Load error:', error.message || error);
       Alert.alert(t('profile.profileError'), error.message || t('profile.loadFailed', { defaultValue: 'Could not load profile data. Please try again.' }));
@@ -247,6 +255,43 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
+  const handleEditPersonalization = () => {
+    if (personalization) {
+      setEditPersonalization({
+        role: personalization.role || null,
+        concern: personalization.concern || null,
+        supportStyle: personalization.supportStyle || null,
+      });
+    }
+    setEditPersonalizationVisible(true);
+  };
+
+  const handleSavePersonalization = async () => {
+    if (!editPersonalization.role || !editPersonalization.concern || !editPersonalization.supportStyle) {
+      Alert.alert(t('personalization.selectOption', { defaultValue: 'Please select an option' }));
+      return;
+    }
+
+    setSavingPersonalization(true);
+
+    try {
+      const updated = await updatePersonalization({
+        role: editPersonalization.role,
+        concern: editPersonalization.concern,
+        supportStyle: editPersonalization.supportStyle,
+      });
+
+      setPersonalization(updated);
+      setEditPersonalizationVisible(false);
+      Alert.alert(t('profile.success'), t('personalization.updateSuccess', { defaultValue: 'Your preferences have been updated!' }));
+    } catch (error) {
+      console.error('[Profile] Personalization update error:', error.message || error);
+      Alert.alert(t('profile.updateFailed'), error.message || t('profile.updateFailed'));
+    } finally {
+      setSavingPersonalization(false);
+    }
+  };
+
   const handleGoBack = () => {
     if (navigation?.canGoBack && navigation.canGoBack()) {
       navigation.goBack();
@@ -348,6 +393,28 @@ const ProfileScreen = ({ navigation }) => {
           )}
         </InfoCard>
 
+        {/* Personalization Info Card */}
+        <InfoCard title={t('personalization.preferences', { defaultValue: 'AI Personalization' })} actionLabel={t('profile.editProfile')} onActionPress={handleEditPersonalization}>
+          {personalization ? (
+            <>
+              <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.infoLabel, { color: theme.mutedText }]}>Role</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{personalization.role || 'Not set'}</Text>
+              </View>
+              <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.infoLabel, { color: theme.mutedText }]}>Concern</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{personalization.concern || 'Not set'}</Text>
+              </View>
+              <View style={styles.infoRowNoBorder}>
+                <Text style={[styles.infoLabel, { color: theme.mutedText }]}>Support Style</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{personalization.supportStyle || 'Not set'}</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={[styles.emptyText, { color: theme.mutedText }]}>No personalization data</Text>
+          )}
+        </InfoCard>
+
         <InfoCard title={t('profile.appearance')}>
           <View style={styles.notificationRow}>
             <View style={styles.notificationTextWrap}>
@@ -439,6 +506,100 @@ const ProfileScreen = ({ navigation }) => {
               </Pressable>
             </View>
           </View>
+        </View>
+      </Modal>
+
+      {/* Personalization Edit Modal */}
+      <Modal visible={editPersonalizationVisible} transparent animationType="fade" onRequestClose={() => setEditPersonalizationVisible(false)}>
+        <View style={[styles.modalBackdrop, { backgroundColor: theme.overlay }]}>
+          <ScrollView contentContainerStyle={styles.modalScrollContent}>
+            <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Edit AI Personalization</Text>
+
+              {/* Role Selection */}
+              <Text style={[styles.modalLabel, { color: theme.mutedText }]}>Role</Text>
+              <View style={{ gap: 8, marginBottom: 16 }}>
+                {['student', 'professional', 'homemaker'].map((role) => (
+                  <TouchableOpacity
+                    key={role}
+                    onPress={() => setEditPersonalization({ ...editPersonalization, role })}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 2,
+                      borderColor: editPersonalization.role === role ? '#4A90E2' : theme.border,
+                      backgroundColor: editPersonalization.role === role ? '#EAF4FF' : theme.inputBackground,
+                    }}
+                  >
+                    <Text style={{ color: editPersonalization.role === role ? '#4A90E2' : theme.text, fontWeight: '500' }}>
+                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Concern Selection */}
+              <Text style={[styles.modalLabel, { color: theme.mutedText }]}>Main Concern</Text>
+              <View style={{ gap: 8, marginBottom: 16 }}>
+                {['stress', 'anxiety', 'overthinking', 'lowMood'].map((concern) => (
+                  <TouchableOpacity
+                    key={concern}
+                    onPress={() => setEditPersonalization({ ...editPersonalization, concern })}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 2,
+                      borderColor: editPersonalization.concern === concern ? '#4A90E2' : theme.border,
+                      backgroundColor: editPersonalization.concern === concern ? '#EAF4FF' : theme.inputBackground,
+                    }}
+                  >
+                    <Text style={{ color: editPersonalization.concern === concern ? '#4A90E2' : theme.text, fontWeight: '500' }}>
+                      {concern.charAt(0).toUpperCase() + concern.replace(/([A-Z])/g, ' $1').slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Support Style Selection */}
+              <Text style={[styles.modalLabel, { color: theme.mutedText }]}>Support Style</Text>
+              <View style={{ gap: 8, marginBottom: 24 }}>
+                {['calm', 'motivational', 'practical'].map((style) => (
+                  <TouchableOpacity
+                    key={style}
+                    onPress={() => setEditPersonalization({ ...editPersonalization, supportStyle: style })}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 2,
+                      borderColor: editPersonalization.supportStyle === style ? '#4A90E2' : theme.border,
+                      backgroundColor: editPersonalization.supportStyle === style ? '#EAF4FF' : theme.inputBackground,
+                    }}
+                  >
+                    <Text style={{ color: editPersonalization.supportStyle === style ? '#4A90E2' : theme.text, fontWeight: '500' }}>
+                      {style.charAt(0).toUpperCase() + style.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Buttons */}
+              <View style={styles.modalButtonWrap}>
+                <Pressable style={[styles.cancelButton, { borderColor: theme.border }]} onPress={() => setEditPersonalizationVisible(false)} disabled={savingPersonalization}>
+                  <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancel</Text>
+                </Pressable>
+                <Pressable style={[styles.saveButton, savingPersonalization ? styles.saveButtonDisabled : null]} onPress={handleSavePersonalization} disabled={savingPersonalization}>
+                  {savingPersonalization ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.saveText}>Save</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
