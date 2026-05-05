@@ -452,9 +452,19 @@ if __name__ == '__main__':
     cbt_file = os.getenv('CBT_KNOWLEDGE_FILE', 'data/cbt_knowledge.docx')
     initialize_rag_system(cbt_file)
     
-    # Run Flask app
-    port = int(os.getenv('PORT', 5000))
+    # For Render: use PORT environment variable (defaults to 5001 for local)
+    port = int(os.getenv('PORT', 5001))
     debug = os.getenv('DEBUG', 'False').lower() == 'true'
     
-    logger.info(f"Starting Flask app on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    logger.info(f"🚀 Starting RAG Flask app on port {port}")
+    logger.info(f"Environment: {'Development (debug=true)' if debug else 'Production'}")
+    
+    # For Render, use gunicorn; locally use Flask dev server
+    if os.getenv('RENDER'):
+        # Running on Render - use gunicorn
+        logger.info("Running on Render with gunicorn")
+        app.run(host='0.0.0.0', port=port, debug=False)
+    else:
+        # Local development
+        app.run(host='0.0.0.0', port=port, debug=debug)
+

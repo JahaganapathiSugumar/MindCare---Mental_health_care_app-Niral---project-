@@ -1,0 +1,2 @@
+release: bash build.sh
+web: cd backend/rag && gunicorn --workers 2 --threads 2 --worker-class gthread --timeout 120 --bind 0.0.0.0:$PORT app:app

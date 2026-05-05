@@ -715,8 +715,66 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Mental health chat backend is running' });
 });
 
-// Main chat endpoint
-app.post('/chat', async (req, res) => {
+// ===== RAG INTEGRATION =====
+
+// Get Flask RAG base URL (local or remote)
+const RAG_BASE_URL = process.env.RAG_URL || 'http://localhost:5001';
+let ragHealthy = false;
+
+// Check RAG health on startup
+const checkRagHealth = async () => {
+  try {
+    const response = await axios.get(`${RAG_BASE_URL}/health`, { timeout: 5000 });
+    ragHealthy = response.data?.rag_initialized === true;
+    console.log(`[RAG] Health check: ${ragHealthy ? 'OK' : 'Not initialized'}`);
+  } catch (error) {
+    ragHealthy = false;
+    console.warn(`[RAG] Health check failed: ${error?.message || error}. RAG will be unavailable.`);
+  }
+};
+
+// Call RAG endpoint to get knowledge base context
+const retrieveRagContext = async (userMessage, userId = 'anonymous') => {
+  if (!ragHealthy) {
+    return { context: [], sources: [], relevanceScores: [] };
+  }
+
+  try {
+    const response = await axios.post(
+      `${RAG_BASE_URL}/chat`,
+      {
+        message: userMessage,
+        user_id: userId,
+        top_k: 3,
+        use_cache: true,
+      },
+      { timeout: 10000 }
+    );
+
+    if (response.data && response.data.context_used) {
+      return {
+        context: response.data.sources || [],
+        sources: response.data.sources || [],
+        relevanceScores: response.data.relevance_scores || [],
+        contextChunks: response.data.context_used || [],
+      };
+    }
+    return { context: [], sources: [], relevanceScores: [] };
+  } catch (error) {
+    console.warn(`[RAG] Retrieval failed: ${error?.message || error}. Continuing without context.`);
+    return { context: [], sources: [], relevanceScores: [] };
+  }
+};
+
+// Check RAG health when server starts
+setTimeout(checkRagHealth, 2000);
+
+// Periodically check RAG health every 30 seconds
+setInterval(checkRagHealth, 30000);
+
+// ===== MAIN CHAT ENDPOINT WITH RAG =====
+
+
   try {
     if (!API_KEY) {
       return res.status(500).json({
@@ -760,16 +818,21 @@ app.post('/chat', async (req, res) => {
       });
     }
 
+    // ===== RETRIEVE RAG CONTEXT =====
+    const ragData = await retrieveRagContext(message.trim(), userId);
+
     const prompt = `
 You are a supportive mental health assistant.
 Respond ONLY in ${languageName}.
 Be empathetic and simple.
 
+KNOWLEDGE BASE CONTEXT:
+${ragData.sources && ragData.sources.length > 0
+      ? ragData.sources.map((src, idx) => `${idx + 1}. ${src}`).join('\n')
+      : 'No specific knowledge base content available for this query.'}
+
 User: ${message.trim()}
 `;
-
-    // Run response generation and emotion classification together.
-    const [response, detectedMood] = await Promise.all([
       openai.chat.completions.create({
         model: MODEL,
         messages: [
@@ -802,7 +865,7 @@ User: ${message.trim()}
 
     console.log(`[${new Date().toISOString()}] Response generated for user: ${userId}`);
 
-    // Return response
+    // Return response with RAG metadata
     res.json({
       response: aiResponse,
       mood: detectedMood,
@@ -810,6 +873,17 @@ User: ${message.trim()}
       crisis,
       userId,
       timestamp: new Date().toISOString(),
+      ragData: ragHealthy ? {
+        usingRag: ragData.sources && ragData.sources.length > 0,
+        sources: ragData.sources || [],
+        relevanceScores: ragData.relevanceScores || [],
+        contextChunks: ragData.contextChunks || [],
+      } : {
+        usingRag: false,
+        sources: [],
+        relevanceScores: [],
+        contextChunks: [],
+      },
     });
   } catch (error) {
     console.error('[ERROR]', error);
