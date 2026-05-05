@@ -773,8 +773,7 @@ setTimeout(checkRagHealth, 2000);
 setInterval(checkRagHealth, 30000);
 
 // ===== MAIN CHAT ENDPOINT WITH RAG =====
-
-
+app.post('/chat', async (req, res) => {
   try {
     if (!API_KEY) {
       return res.status(500).json({
@@ -833,6 +832,8 @@ ${ragData.sources && ragData.sources.length > 0
 
 User: ${message.trim()}
 `;
+
+    const [response, detectedMood] = await Promise.all([
       openai.chat.completions.create({
         model: MODEL,
         messages: [
