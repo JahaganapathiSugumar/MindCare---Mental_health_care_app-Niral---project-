@@ -535,6 +535,17 @@ export const updateProfilePhoto = async (photoURL) => {
     { merge: true }
   );
 
+  try {
+    await updateProfile(auth.currentUser, { photoURL: resolvedPhotoURL });
+  } catch (_syncError) {
+    // Non-fatal: Firestore now contains canonical URL.
+  }
+
+  await saveLocalProfilePhotoUri(userId, resolvedPhotoURL);
+
+  return resolvedPhotoURL;
+};
+
 /**
  * Get personalization data for the user
  */
@@ -615,96 +626,6 @@ export const updatePersonalization = async (updates) => {
     console.error('[profileService] Failed to update personalization:', error);
     throw error;
   }
-};
-
-    const userRef = doc(db, 'users', auth.currentUser.uid);
-    const personalizationData = {
-      role: updates.role,
-      concern: updates.concern,
-      supportStyle: updates.supportStyle,
-      personalizationCompleted: true,
-      personalizationCompletedAt: new Date().toISOString(),
-    };
-
-    await setDoc(userRef, personalizationData, { merge: true });
-
-    // Also update local storage
-    await AsyncStorage.setItem('userPersonalization', JSON.stringify(personalizationData));
-
-    return personalizationData;
-  } catch (error) {
-    console.error('[profileService] Failed to update personalization:', error);
-    throw error;
-  }
-};
-
-  const userId = auth.currentUser.uid;
-  const userDocRef = doc(db, 'users', userId);
-  let resolvedPhotoURL = trimmedPhotoURL;
-
-  // Expo image picker URIs are often temporary; upload them to Firebase Storage
-  // so they remain available across logout/login and app restarts.
-  if (isTemporaryDeviceUri(trimmedPhotoURL)) {
-    try {
-      resolvedPhotoURL = await uploadLocalProfilePhotoToStorage(userId, trimmedPhotoURL);
-    } catch (error) {
-      // Storage may be unavailable/misconfigured. Keep app usable by caching locally and Firestore Base64 fallback.
-      const dataUri = await encodeLocalImageToDataUri(trimmedPhotoURL);
-
-      if (!isImageDataUri(dataUri)) {
-        throw new Error('Could not encode selected image. Please choose another photo.');
-      }
-
-      if (dataUri.length > MAX_PROFILE_DATA_URI_CHARS) {
-        throw new Error('Selected image is too large for Firestore fallback. Please choose a smaller photo.');
-      }
-
-      await setDoc(
-        userDocRef,
-        {
-          uid: userId,
-          photoURL: null,
-          photoBase64: dataUri,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-
-      await saveLocalProfilePhotoUri(userId, trimmedPhotoURL);
-      if (__DEV__) {
-        console.warn('[ProfileService] Falling back to local profile photo cache:', error?.message || error);
-      }
-      return dataUri;
-    }
-  } else {
-    const fromStoragePath = await resolveStorageDownloadUrl(app, trimmedPhotoURL);
-    if (fromStoragePath) {
-      resolvedPhotoURL = fromStoragePath;
-    }
-  }
-
-  if (!isHttpUrl(resolvedPhotoURL)) {
-    throw new Error('Could not resolve profile photo to a valid image URL. Please choose a photo from your device.');
-  }
-
-  await setDoc(
-    userDocRef,
-    {
-      uid: userId,
-      photoURL: resolvedPhotoURL,
-      photoBase64: null,
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true }
-  );
-
-  await updateProfile(auth.currentUser, { photoURL: resolvedPhotoURL });
-
-  if (isTemporaryDeviceUri(trimmedPhotoURL)) {
-    await saveLocalProfilePhotoUri(userId, trimmedPhotoURL);
-  }
-
-  return resolvedPhotoURL;
 };
 
 export const updateNotificationPreference = async (enabled) => {
