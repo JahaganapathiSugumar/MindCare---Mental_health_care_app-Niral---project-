@@ -3,10 +3,17 @@ Flask API for RAG-powered mental health chatbot
 """
 
 import os
+import sys
 import logging
 import hashlib
 import time
 from typing import Dict, Any, List
+
+# Fix path for imports - add backend directory to Python path
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import numpy as np
