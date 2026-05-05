@@ -101,3 +101,5 @@ export const useLanguage = () => useContext(LanguageContext);
 export const LANGUAGE_KEYS = {
   storage: LANGUAGE_STORAGE_KEY,
 };
+
+export { LanguageContext };
