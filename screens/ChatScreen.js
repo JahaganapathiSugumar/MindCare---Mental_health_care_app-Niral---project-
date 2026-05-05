@@ -325,6 +325,7 @@ const ChatScreen = ({ navigation, route }) => {
           sender: 'ai',
           senderName: t('chat.title'),
           suggestions: Array.isArray(result.suggestions) ? result.suggestions : [],
+          ragData: result.ragData || { usingRag: false, sources: [], relevanceScores: [], contextChunks: [] },
         };
 
         setMessages((prev) => [...prev, aiMessage]);

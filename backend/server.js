@@ -761,8 +761,8 @@ const retrieveRagContext = async (userMessage, userId = 'anonymous') => {
       
       console.log(`[RAG] Query: "${userMessage.substring(0, 50)}..." | Scores: [${relevanceScores.map(s => s.toFixed(2)).join(', ')}] | Avg: ${avgRelevance.toFixed(3)}`);
       
-      // Threshold: use RAG only if average relevance > 0.5
-      const SIMILARITY_THRESHOLD = 0.5;
+      // Threshold: use RAG only if average relevance > 0.35 (more permissive for testing)
+      const SIMILARITY_THRESHOLD = 0.35;
       if (avgRelevance > SIMILARITY_THRESHOLD) {
         console.log(`✅ [RAG] Using RAG (similarity ${avgRelevance.toFixed(3)} > threshold ${SIMILARITY_THRESHOLD})`);
         return {
