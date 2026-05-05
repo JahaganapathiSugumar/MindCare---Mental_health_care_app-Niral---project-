@@ -11,6 +11,10 @@ from pathlib import Path
 from typing import List, Dict, Tuple
 import numpy as np
 
+# Add backend directory to path for imports
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, backend_dir)
+
 # Import RAG components
 from rag.file_parsers import get_universal_parser
 from rag.chunking import TextChunker, Chunk
@@ -34,7 +38,7 @@ class RAGIngestionSystem:
     """Automated incremental RAG ingestion pipeline"""
     
     def __init__(self, 
-                 data_folder: str = "data_folder",
+                 data_folder: str = "backend\\data_folder",
                  faiss_index_dir: str = "faiss_index",
                  embedding_dimension: int = 384):
         """
@@ -51,13 +55,15 @@ class RAGIngestionSystem:
         
         # Initialize components
         self.file_parser = get_universal_parser()
-        self.chunker = TextChunker()
+        self.chunker = TextChunker(min_chunk_size=100, max_chunk_size=300)
         self.embedding_gen = EmbeddingGenerator()
         
         self.faiss_index = IncrementalFAISSIndex(
             index_dir=faiss_index_dir,
             dimension=embedding_dimension
         )
+        # Load existing index or create new one
+        self.faiss_index.load_or_create()
         
         self.metadata_store = MetadataStore(
             metadata_file=os.path.join(faiss_index_dir, "meta.json")
@@ -94,11 +100,7 @@ class RAGIngestionSystem:
             
             # Step 2: Chunk text
             logger.info("Step 2: Chunking text...")
-            chunks = self.chunker.chunk_by_sentences(
-                text,
-                min_size=100,
-                max_size=300
-            )
+            chunks = self.chunker.chunk_by_sentences(text, section="General")
             logger.info(f"✓ Created {len(chunks)} chunks")
             
             if not chunks:
@@ -287,10 +289,15 @@ def main():
     """Main ingestion function"""
     import argparse
     
+    # Set default paths relative to backend directory
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    default_data_folder = os.path.join(backend_dir, 'data_folder')
+    default_faiss_dir = os.path.join(backend_dir, 'faiss_index')
+    
     parser = argparse.ArgumentParser(description='RAG Incremental Ingestion System')
-    parser.add_argument('--data-folder', default='data_folder', 
+    parser.add_argument('--data-folder', default=default_data_folder, 
                        help='Path to data folder')
-    parser.add_argument('--faiss-dir', default='faiss_index',
+    parser.add_argument('--faiss-dir', default=default_faiss_dir,
                        help='Path to FAISS index directory')
     parser.add_argument('--stats', action='store_true',
                        help='Show statistics only')

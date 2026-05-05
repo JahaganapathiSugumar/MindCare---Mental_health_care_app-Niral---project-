@@ -1,0 +1,21 @@
+{
+  "last_ingestion": "2026-05-05T04:35:12.907016",
+  "total_files_processed": 5,
+  "total_chunks_created": 13,
+  "ingestion_runs": [
+    {
+      "timestamp": "2026-05-05T04:33:14.031792",
+      "files_processed": 0,
+      "chunks_created": 0,
+      "duration_seconds": 0.16971683502197266,
+      "status": "no_files_processed"
+    },
+    {
+      "timestamp": "2026-05-05T04:35:12.907016",
+      "files_processed": 5,
+      "chunks_created": 13,
+      "duration_seconds": 1.4605004787445068,
+      "status": "success"
+    }
+  ]
+}

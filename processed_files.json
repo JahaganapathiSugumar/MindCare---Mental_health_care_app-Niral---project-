@@ -1,0 +1,27 @@
+{
+  "anxiety_guide.txt": {
+    "processed_at": "2026-05-05T04:35:11.593926",
+    "status": "success",
+    "chunks_count": 1
+  },
+  "anxiety_management.txt": {
+    "processed_at": "2026-05-05T04:35:11.986244",
+    "status": "success",
+    "chunks_count": 4
+  },
+  "CBT_Knowledge_Base.docx": {
+    "processed_at": "2026-05-05T04:35:12.145171",
+    "status": "success",
+    "chunks_count": 1
+  },
+  "depression_recovery.txt": {
+    "processed_at": "2026-05-05T04:35:12.439823",
+    "status": "success",
+    "chunks_count": 3
+  },
+  "mindfulness_meditation.txt": {
+    "processed_at": "2026-05-05T04:35:12.905009",
+    "status": "success",
+    "chunks_count": 4
+  }
+}
