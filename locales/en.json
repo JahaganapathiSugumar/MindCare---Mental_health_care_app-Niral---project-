@@ -272,5 +272,24 @@
     "anxious": "Anxious",
     "unknown": "Unknown mood",
     "mood": "Mood"
+  },
+  "personalization": {
+    "selectOption": "Please select an option",
+    "roleTitle": "What best describes you?",
+    "concernTitle": "What are you mainly dealing with?",
+    "styleTitle": "How would you like support?",
+    "student": "Student",
+    "professional": "Working Professional",
+    "homemaker": "Homemaker",
+    "stress": "Stress",
+    "anxiety": "Anxiety",
+    "overthinking": "Overthinking",
+    "lowMood": "Low Mood",
+    "calm": "Calm & Supportive",
+    "motivational": "Motivational",
+    "practical": "Practical Advice",
+    "getStarted": "Get Started",
+    "skip": "Skip",
+    "back": "Back"
   }
 }

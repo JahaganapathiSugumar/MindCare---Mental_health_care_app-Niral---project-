@@ -1,4 +1,5 @@
 import React, { useState, useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -13,11 +14,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import { ThemeContext } from '../context/ThemeContext';
-import { LanguageContext } from '../context/LanguageContext';
 
 const PersonalizationScreen = ({ navigation }) => {
   const { theme } = useContext(ThemeContext);
-  const { t } = useContext(LanguageContext);
+  const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [answers, setAnswers] = useState({
@@ -167,7 +167,7 @@ const PersonalizationScreen = ({ navigation }) => {
               />
             </TouchableOpacity>
           )}
-          <Text style={{ fontSize: 28, fontWeight: '700', color: theme.text }}>
+          <Text style={{ marginTop: 10, fontSize: 28, fontWeight: '700', color: theme.text }}>
             {t('personalization.helpPersonalize', { defaultValue: 'Help us personalize' })}
           </Text>
           <Text

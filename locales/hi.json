@@ -81,5 +81,24 @@
     "anxious": "चिंतित",
     "unknown": "अज्ञात मूड",
     "mood": "मूड"
+  },
+  "personalization": {
+    "selectOption": "कृपया एक विकल्प चुनें",
+    "roleTitle": "आप सबसे अच्छे से क्या हैं?",
+    "concernTitle": "आप मुख्य रूप से किससे जूझ रहे हैं?",
+    "styleTitle": "आप किस प्रकार की सहायता चाहते हैं?",
+    "student": "छात्र",
+    "professional": "कार्यरत पेशेवर",
+    "homemaker": "गृहिणी",
+    "stress": "तनाव",
+    "anxiety": "चिंता",
+    "overthinking": "अत्यधिक सोच",
+    "lowMood": "खराब मानसिकता",
+    "calm": "शांत और सहायक",
+    "motivational": "प्रेरक",
+    "practical": "व्यावहारिक सलाह",
+    "getStarted": "शुरू करें",
+    "skip": "छोड़ें",
+    "back": "पीछे"
   }
 }
