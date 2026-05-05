@@ -752,6 +752,8 @@ const retrieveRagContext = async (userMessage, userId = 'anonymous') => {
       { timeout: 10000 }
     );
 
+    console.log('[RAG] Flask Response:', JSON.stringify(response.data, null, 2));
+
     if (response.data && response.data.context_used) {
       // Check similarity scores - only use RAG if relevance is above threshold (0.5)
       const relevanceScores = response.data.relevance_scores || [];
