@@ -736,7 +736,8 @@ const checkRagHealth = async () => {
 // Call RAG endpoint to get knowledge base context
 const retrieveRagContext = async (userMessage, userId = 'anonymous') => {
   if (!ragHealthy) {
-    return { context: [], sources: [], relevanceScores: [] };
+    console.log('[RAG] RAG not healthy, skipping retrieval');
+    return { context: [], sources: [], relevanceScores: [], usingRag: false };
   }
 
   try {
@@ -752,17 +753,34 @@ const retrieveRagContext = async (userMessage, userId = 'anonymous') => {
     );
 
     if (response.data && response.data.context_used) {
-      return {
-        context: response.data.sources || [],
-        sources: response.data.sources || [],
-        relevanceScores: response.data.relevance_scores || [],
-        contextChunks: response.data.context_used || [],
-      };
+      // Check similarity scores - only use RAG if relevance is above threshold (0.5)
+      const relevanceScores = response.data.relevance_scores || [];
+      const avgRelevance = relevanceScores.length > 0 
+        ? relevanceScores.reduce((a, b) => a + b, 0) / relevanceScores.length 
+        : 0;
+      
+      console.log(`[RAG] Query: "${userMessage.substring(0, 50)}..." | Scores: [${relevanceScores.map(s => s.toFixed(2)).join(', ')}] | Avg: ${avgRelevance.toFixed(3)}`);
+      
+      // Threshold: use RAG only if average relevance > 0.5
+      const SIMILARITY_THRESHOLD = 0.5;
+      if (avgRelevance > SIMILARITY_THRESHOLD) {
+        console.log(`✅ [RAG] Using RAG (similarity ${avgRelevance.toFixed(3)} > threshold ${SIMILARITY_THRESHOLD})`);
+        return {
+          context: response.data.sources || [],
+          sources: response.data.sources || [],
+          relevanceScores: relevanceScores,
+          contextChunks: response.data.context_used || [],
+          usingRag: true,
+        };
+      } else {
+        console.log(`⚠️  [RAG] Low similarity (${avgRelevance.toFixed(3)} < ${SIMILARITY_THRESHOLD}) → Falling back to Groq API`);
+        return { context: [], sources: [], relevanceScores: [], usingRag: false };
+      }
     }
-    return { context: [], sources: [], relevanceScores: [] };
+    return { context: [], sources: [], relevanceScores: [], usingRag: false };
   } catch (error) {
     console.warn(`[RAG] Retrieval failed: ${error?.message || error}. Continuing without context.`);
-    return { context: [], sources: [], relevanceScores: [] };
+    return { context: [], sources: [], relevanceScores: [], usingRag: false };
   }
 };
 
@@ -874,16 +892,11 @@ User: ${message.trim()}
       crisis,
       userId,
       timestamp: new Date().toISOString(),
-      ragData: ragHealthy ? {
-        usingRag: ragData.sources && ragData.sources.length > 0,
+      ragData: {
+        usingRag: ragData.usingRag === true,
         sources: ragData.sources || [],
         relevanceScores: ragData.relevanceScores || [],
         contextChunks: ragData.contextChunks || [],
-      } : {
-        usingRag: false,
-        sources: [],
-        relevanceScores: [],
-        contextChunks: [],
       },
     });
   } catch (error) {

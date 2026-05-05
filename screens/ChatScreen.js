@@ -443,6 +443,24 @@ const ChatScreen = ({ navigation, route }) => {
           ]}
         >
           <Text style={[styles.messageText, isUserMessage ? styles.userText : [styles.aiText, { color: theme.text }]]}>{item.text}</Text>
+          
+          {/* RAG Badge */}
+          {!isUserMessage && item.ragData?.usingRag ? (
+            <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons name="book-open-variant" size={14} color="#2A7FBF" />
+                <Text style={{ fontSize: 12, color: '#2A7FBF', marginLeft: 4, fontWeight: '500' }}>
+                  Knowledge Base
+                </Text>
+              </View>
+              {item.ragData?.sources?.length > 0 && (
+                <Text style={{ fontSize: 11, color: theme.mutedText, marginTop: 4 }}>
+                  Based on {item.ragData.sources.length} source{item.ragData.sources.length > 1 ? 's' : ''}
+                </Text>
+              )}
+            </View>
+          ) : null}
+          
           <Text style={[styles.timestamp, isUserMessage ? styles.userTimestamp : [styles.aiTimestamp, { color: theme.mutedText }]]}>
             {formatMessageTime(item.createdAt)}
           </Text>
