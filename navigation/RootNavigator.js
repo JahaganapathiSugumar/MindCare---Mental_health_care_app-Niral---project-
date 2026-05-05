@@ -14,6 +14,7 @@ import MoodScreen from '../screens/MoodScreen';
 import ReportScreen from '../screens/ReportScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import PersonalizationScreen from '../screens/PersonalizationScreen';
+import TrustedContactScreen from '../screens/TrustedContactScreen';
 import LanguageSelectionScreen from '../screens/LanguageSelectionScreen';
 import ExerciseScreen from '../screens/ExerciseScreen';
 import { initializeProactiveNotifications } from '../services/notifications';
@@ -33,6 +34,8 @@ const RootNavigator = () => {
   const [onboardingLoading, setOnboardingLoading] = useState(true);
   const [personalizationCompleted, setPersonalizationCompleted] = useState(false);
   const [personalizationLoading, setPersonalizationLoading] = useState(true);
+  const [trustedContactSetup, setTrustedContactSetup] = useState(false);
+  const [trustedContactLoading, setTrustedContactLoading] = useState(true);
 
   useEffect(() => {
     const bootstrapOnboardingState = async () => {
@@ -64,6 +67,23 @@ const RootNavigator = () => {
     };
 
     bootstrapPersonalizationState();
+  }, []);
+
+  useEffect(() => {
+    const bootstrapTrustedContactState = async () => {
+      try {
+        const contactAdded = await AsyncStorage.getItem('trustedContactAdded');
+        const contactSkipped = await AsyncStorage.getItem('trustedContactSkipped');
+        setTrustedContactSetup(contactAdded === 'true' || contactSkipped === 'true');
+      } catch (error) {
+        console.warn('[RootNavigator] Failed trusted contact state read:', error?.message || error);
+        setTrustedContactSetup(false);
+      } finally {
+        setTrustedContactLoading(false);
+      }
+    };
+
+    bootstrapTrustedContactState();
   }, []);
 
   useEffect(() => {
@@ -160,7 +180,7 @@ const RootNavigator = () => {
     bootstrapNotifications();
   }, [language, t, user?.uid, user?.displayName, user?.email]);
 
-  if (loading || onboardingLoading || personalizationLoading || !isLanguageReady) {
+  if (loading || onboardingLoading || personalizationLoading || trustedContactLoading || !isLanguageReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' }}>
         <ActivityIndicator size="large" color="#007AFF" />
@@ -170,7 +190,15 @@ const RootNavigator = () => {
   }
 
   const initialRouteName = user
-    ? (!hasSelectedLanguage ? 'LanguageSelection' : (hasSeenOnboarding ? (personalizationCompleted ? 'Home' : 'Personalization') : 'Onboarding'))
+    ? (!hasSelectedLanguage
+      ? 'LanguageSelection'
+      : !hasSeenOnboarding
+      ? 'Onboarding'
+      : !personalizationCompleted
+      ? 'Personalization'
+      : !trustedContactSetup
+      ? 'TrustedContact'
+      : 'Home')
     : 'SignIn';
 
   return (
@@ -207,6 +235,12 @@ const RootNavigator = () => {
               <Stack.Screen
                 name="Personalization"
                 component={PersonalizationScreen}
+              />
+            ) : null}
+            {hasSelectedLanguage && personalizationCompleted && !trustedContactSetup ? (
+              <Stack.Screen
+                name="TrustedContact"
+                component={TrustedContactScreen}
               />
             ) : null}
             {hasSelectedLanguage ? <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} /> : null}

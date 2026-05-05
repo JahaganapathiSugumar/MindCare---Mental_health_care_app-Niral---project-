@@ -152,6 +152,7 @@ const PersonalizationScreen = ({ navigation }) => {
         {/* Header */}
         <View
           style={{
+            marginTop: 20, 
             paddingHorizontal: 24,
             paddingVertical: 20,
             borderBottomWidth: 1,
@@ -167,7 +168,7 @@ const PersonalizationScreen = ({ navigation }) => {
               />
             </TouchableOpacity>
           )}
-          <Text style={{ marginTop: 10, fontSize: 28, fontWeight: '700', color: theme.text }}>
+          <Text style={{fontSize: 28, fontWeight: '700', color: theme.text }}>
             {t('personalization.helpPersonalize', { defaultValue: 'Help us personalize' })}
           </Text>
           <Text

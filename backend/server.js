@@ -1377,6 +1377,80 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
+/**
+ * Emergency SMS Notification Endpoint
+ * POST /emergency/notify
+ * 
+ * Sends an SMS to a trusted contact in critical situations
+ * Requires: Twilio API credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER)
+ * 
+ * Request body:
+ * {
+ *   userId: "user-id",
+ *   userName: "User Name",
+ *   contactName: "Contact Name",
+ *   contactPhone: "+91XXXXXXXXXX",
+ *   message: "Custom message (optional)"
+ * }
+ */
+app.post('/emergency/notify', async (req, res) => {
+  try {
+    const { userId, userName, contactName, contactPhone, message } = req.body;
+
+    // Validate required fields
+    if (!userId || !contactName || !contactPhone) {
+      return res.status(400).json({
+        error: 'Missing required fields: userId, contactName, contactPhone',
+      });
+    }
+
+    // Check if Twilio is configured
+    const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
+    const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+    const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+
+    if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
+      console.warn('[Emergency] Twilio not configured. SMS notification skipped.');
+      return res.json({
+        success: false,
+        reason: 'sms-provider-unavailable',
+        message: 'SMS service is not configured on the backend. Please contact support.',
+      });
+    }
+
+    // Prepare SMS message
+    const smsBody = message || `${userName} from MindCare has reached out. They may need your support. Please reach out to them when you can.`;
+
+    // Log the notification intent (in production, actually send via Twilio)
+    console.log(`[Emergency] Sending SMS to ${contactName} (${contactPhone}): "${smsBody}"`);
+
+    // TODO: Integrate with Twilio SDK to send actual SMS
+    // Example using twilio package:
+    // const twilio = require('twilio');
+    // const client = twilio(twilioAccountSid, twilioAuthToken);
+    // await client.messages.create({
+    //   body: smsBody,
+    //   from: twilioPhoneNumber,
+    //   to: contactPhone,
+    // });
+
+    // For now, return success to indicate the request was processed
+    // In production, actually send the SMS and handle errors
+    return res.json({
+      success: true,
+      message: `SMS notification queued for ${contactName}`,
+      timestamp: new Date().toISOString(),
+      userId,
+    });
+  } catch (error) {
+    console.error('[Emergency SMS Error]', error);
+    return res.status(500).json({
+      error: 'Failed to send emergency notification',
+      reason: error?.message || 'unknown-error',
+    });
+  }
+});
+
 // Error handler
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err);

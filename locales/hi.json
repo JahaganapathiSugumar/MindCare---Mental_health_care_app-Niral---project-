@@ -100,5 +100,27 @@
     "getStarted": "शुरू करें",
     "skip": "छोड़ें",
     "back": "पीछे"
+  },
+  "trustedContact": {
+    "title": "एक विश्वसनीय संपर्क जोड़ें",
+    "subtitle": "यदि आप कभी अभिभूत महसूस करते हैं, तो हम किसी को सूचित करने में मदद कर सकते हैं जिस पर आप विश्वास करते हैं।",
+    "contactName": "संपर्क का नाम",
+    "contactNamePlaceholder": "जैसे, माँ, दोस्त, चिकित्सक",
+    "phoneNumber": "फोन नंबर",
+    "phoneNumberPlaceholder": "+91 98765 43210",
+    "saveContact": "संपर्क सहेजें",
+    "skip": "छोड़ें",
+    "privacyMessage": "हम केवल गंभीर परिस्थितियों में इस संपर्क को सूचित करेंगे।",
+    "errorTitle": "अधूरा",
+    "fillAllFields": "कृपया सभी फील्ड भरें",
+    "invalidPhone": "अमान्य फोन",
+    "invalidPhoneMsg": "कृपया एक मान्य फोन नंबर दर्ज करें",
+    "errorSaving": "त्रुटि",
+    "errorSavingMsg": "संपर्क को सहेजने में विफल। कृपया पुनः प्रयास करें।",
+    "aiPersonalizationCard": "आपातकालीन संपर्क",
+    "aiPersonalizationSubtitle": "गंभीर परिस्थितियों के लिए",
+    "edit": "संपादित करें",
+    "saved": "सहेजा गया",
+    "remove": "हटाएं"
   }
 }

@@ -291,5 +291,27 @@
     "getStarted": "Get Started",
     "skip": "Skip",
     "back": "Back"
+  },
+  "trustedContact": {
+    "title": "Add a trusted contact",
+    "subtitle": "If you're ever feeling overwhelmed, we can help notify someone you trust.",
+    "contactName": "Contact Name",
+    "contactNamePlaceholder": "e.g., Mom, Friend, Therapist",
+    "phoneNumber": "Phone Number",
+    "phoneNumberPlaceholder": "+91 98765 43210",
+    "saveContact": "Save Contact",
+    "skip": "Skip",
+    "privacyMessage": "We will only notify this contact in critical situations.",
+    "errorTitle": "Incomplete",
+    "fillAllFields": "Please fill in all fields",
+    "invalidPhone": "Invalid Phone",
+    "invalidPhoneMsg": "Please enter a valid phone number",
+    "errorSaving": "Error",
+    "errorSavingMsg": "Failed to save contact. Please try again.",
+    "aiPersonalizationCard": "Emergency Contact",
+    "aiPersonalizationSubtitle": "For critical situations",
+    "edit": "Edit",
+    "saved": "Saved",
+    "remove": "Remove"
   }
 }
