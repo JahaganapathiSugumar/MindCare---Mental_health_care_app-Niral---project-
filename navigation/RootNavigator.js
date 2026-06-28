@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { View, ActivityIndicator, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
@@ -13,19 +14,21 @@ import ChatScreen from '../screens/ChatScreen';
 import MoodScreen from '../screens/MoodScreen';
 import ReportScreen from '../screens/ReportScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import TermsConditionsScreen from '../screens/TermsConditionsScreen';
 import PersonalizationScreen from '../screens/PersonalizationScreen';
 import TrustedContactScreen from '../screens/TrustedContactScreen';
 import LanguageSelectionScreen from '../screens/LanguageSelectionScreen';
 import ExerciseScreen from '../screens/ExerciseScreen';
+import VoiceCompanionScreen from '../screens/VoiceCompanionScreen';
 import { initializeProactiveNotifications } from '../services/notifications';
-import { getHasSeenOnboarding } from '../utils/storage';
+import { getHasSeenOnboarding, setHasSeenOnboarding as setHasSeenOnboardingStorage, clearHasSeenOnboarding as clearHasSeenOnboardingStorage } from '../utils/storage';
 import { useLanguage } from '../context/LanguageContext';
 import { useTranslation } from 'react-i18next';
 
 const Stack = createStackNavigator();
 
 const RootNavigator = () => {
-  const { hasSelectedLanguage, isLanguageReady, language } = useLanguage();
+  const { hasSelectedLanguage, isLanguageReady, language, resetLanguagePreference } = useLanguage();
   const { t } = useTranslation();
   const [user, setUser] = useState(undefined);
   const [loading, setLoading] = useState(true);
@@ -36,6 +39,8 @@ const RootNavigator = () => {
   const [personalizationLoading, setPersonalizationLoading] = useState(true);
   const [trustedContactSetup, setTrustedContactSetup] = useState(false);
   const [trustedContactLoading, setTrustedContactLoading] = useState(true);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsLoading, setTermsLoading] = useState(true);
 
   useEffect(() => {
     const bootstrapOnboardingState = async () => {
@@ -51,6 +56,22 @@ const RootNavigator = () => {
     };
 
     bootstrapOnboardingState();
+  }, []);
+
+  useEffect(() => {
+    const bootstrapTermsState = async () => {
+      try {
+        const terms = await AsyncStorage.getItem('termsAccepted');
+        setTermsAccepted(terms === 'true');
+      } catch (error) {
+        console.warn('[RootNavigator] Failed terms state read:', error?.message || error);
+        setTermsAccepted(false);
+      } finally {
+        setTermsLoading(false);
+      }
+    };
+
+    bootstrapTermsState();
   }, []);
 
   useEffect(() => {
@@ -116,10 +137,84 @@ const RootNavigator = () => {
           const auth = await ensureAuthInitialized();
           const unsubscribe = onAuthStateChanged(
             auth,
-            (authUser) => {
+            async (authUser) => {
               console.log('[RootNavigator] Auth state changed:', authUser ? `User: ${authUser.email}` : 'No user');
-              setUser(authUser);
-              setLoading(false);
+              
+              if (authUser) {
+                // Prevent rendering logged-in screens until we verify onboarding state
+                setLoading(true);
+                setUser(authUser);
+                
+                // Fetch progress from Firestore to sync local state
+                try {
+                  const db = getFirestore();
+                  const docRef = doc(db, 'users', authUser.uid);
+                  const docSnap = await getDoc(docRef);
+                  
+                  if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    
+                    // Update state variables
+                    const isTerms = !!data.termsAccepted;
+                    const isSeenOnboarding = !!data.hasSeenOnboarding;
+                    const isPersonalization = !!data.personalizationCompleted;
+                    const isTrusted = !!data.trustedContactSetup;
+                    
+                    setTermsAccepted(isTerms);
+                    setHasSeenOnboarding(isSeenOnboarding);
+                    setPersonalizationCompleted(isPersonalization);
+                    setTrustedContactSetup(isTrusted);
+                    
+                    // Sync to AsyncStorage for offline persistence
+                    if (isTerms) await AsyncStorage.setItem('termsAccepted', 'true');
+                    else await AsyncStorage.removeItem('termsAccepted');
+                    
+                    if (isSeenOnboarding) await setHasSeenOnboardingStorage(true);
+                    else await clearHasSeenOnboardingStorage();
+                    
+                    if (isPersonalization) await AsyncStorage.setItem('personalizationCompleted', 'true');
+                    else await AsyncStorage.removeItem('personalizationCompleted');
+                    
+                    if (isTrusted) await AsyncStorage.setItem('trustedContactAdded', 'true');
+                    else {
+                      await AsyncStorage.removeItem('trustedContactAdded');
+                      await AsyncStorage.removeItem('trustedContactSkipped');
+                    }
+                    
+                    // If the user doesn't have a preferred language or it's a completely fresh sign up
+                    // where flags aren't set, we might need to reset language preference
+                    // But if they have one stored, maybe they just logged in. 
+                    // To be safe, if terms are not accepted, it implies a new account flow.
+                    if (!isTerms && resetLanguagePreference) {
+                      await resetLanguagePreference();
+                    }
+                  } else {
+                    // New user or missing profile, reset local state
+                    setTermsAccepted(false);
+                    setHasSeenOnboarding(false);
+                    setPersonalizationCompleted(false);
+                    setTrustedContactSetup(false);
+                    
+                    // Clear AsyncStorage
+                    await AsyncStorage.removeItem('termsAccepted');
+                    await clearHasSeenOnboardingStorage();
+                    await AsyncStorage.removeItem('personalizationCompleted');
+                    await AsyncStorage.removeItem('trustedContactAdded');
+                    await AsyncStorage.removeItem('trustedContactSkipped');
+                    
+                    if (resetLanguagePreference) {
+                      await resetLanguagePreference();
+                    }
+                  }
+                } catch (e) {
+                  console.warn('[RootNavigator] Error fetching user progress:', e.message || e);
+                } finally {
+                  setLoading(false);
+                }
+              } else {
+                setUser(null);
+                setLoading(false);
+              }
             },
             (error) => {
               console.error('[RootNavigator] Auth state listener error:', error.message);
@@ -180,7 +275,7 @@ const RootNavigator = () => {
     bootstrapNotifications();
   }, [language, t, user?.uid, user?.displayName, user?.email]);
 
-  if (loading || onboardingLoading || personalizationLoading || trustedContactLoading || !isLanguageReady) {
+  if (loading || onboardingLoading || personalizationLoading || trustedContactLoading || termsLoading || !isLanguageReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' }}>
         <ActivityIndicator size="large" color="#007AFF" />
@@ -192,6 +287,8 @@ const RootNavigator = () => {
   const initialRouteName = user
     ? (!hasSelectedLanguage
       ? 'LanguageSelection'
+      : !termsAccepted
+      ? 'TermsConditions'
       : !hasSeenOnboarding
       ? 'Onboarding'
       : !personalizationCompleted
@@ -213,42 +310,18 @@ const RootNavigator = () => {
       >
         {user ? (
           <>
-            {!hasSelectedLanguage ? (
-              <Stack.Screen
-                name="LanguageSelection"
-                component={LanguageSelectionScreen}
-                initialParams={{
-                  onCompleteRoute: hasSeenOnboarding ? 'Home' : 'Onboarding',
-                }}
-              />
-            ) : null}
-            {hasSelectedLanguage && !hasSeenOnboarding ? (
-              <Stack.Screen
-                name="Onboarding"
-                component={OnboardingScreen}
-                initialParams={{
-                  userName: user.displayName || user.email?.split('@')?.[0] || t('profile.mindcareUser'),
-                }}
-              />
-            ) : null}
-            {hasSelectedLanguage && hasSeenOnboarding && !personalizationCompleted ? (
-              <Stack.Screen
-                name="Personalization"
-                component={PersonalizationScreen}
-              />
-            ) : null}
-            {hasSelectedLanguage && personalizationCompleted && !trustedContactSetup ? (
-              <Stack.Screen
-                name="TrustedContact"
-                component={TrustedContactScreen}
-              />
-            ) : null}
-            {hasSelectedLanguage ? <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} /> : null}
-            {hasSelectedLanguage ? <Stack.Screen name="Profile" component={ProfileScreen} /> : null}
-            {hasSelectedLanguage ? <Stack.Screen name="Chat" component={ChatScreen} /> : null}
-            {hasSelectedLanguage ? <Stack.Screen name="Exercise" component={ExerciseScreen} /> : null}
-            {hasSelectedLanguage ? <Stack.Screen name="Mood" component={MoodScreen} /> : null}
-            {hasSelectedLanguage ? <Stack.Screen name="Report" component={ReportScreen} /> : null}
+            <Stack.Screen name="LanguageSelection" component={LanguageSelectionScreen} />
+            <Stack.Screen name="TermsConditions" component={TermsConditionsScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} initialParams={{ userName: user.displayName || user.email?.split('@')?.[0] || t('profile.mindcareUser') }} />
+            <Stack.Screen name="Personalization" component={PersonalizationScreen} />
+            <Stack.Screen name="TrustedContact" component={TrustedContactScreen} />
+            <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="VoiceCompanion" component={VoiceCompanionScreen} options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="Exercise" component={ExerciseScreen} />
+            <Stack.Screen name="Mood" component={MoodScreen} />
+            <Stack.Screen name="Report" component={ReportScreen} />
           </>
         ) : (
           <>

@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import {
   ActivityIndicator,
-  Animated,
   Alert,
   Modal,
   Pressable,
@@ -14,11 +14,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  FlatList,
+  Dimensions,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ProfileHeader from '../components/ProfileHeader';
-import InfoCard from '../components/InfoCard';
-import MoodItem from '../components/MoodItem';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   fetchMoodHistory,
   fetchProfileData,
@@ -29,6 +30,13 @@ import {
   getPersonalization,
   updatePersonalization,
 } from '../services/profileService';
+import {
+  getTrustedContact,
+  isTrustedContactSetup,
+  updateTrustedContact,
+  removeTrustedContact,
+} from '../services/trustedContactService';
+import * as Contacts from 'expo-contacts';
 import { getFullNameValidationError } from '../utils/validation';
 import {
   cancelMindCareScheduledNotifications,
@@ -57,17 +65,16 @@ const ProfileScreen = ({ navigation }) => {
   const [personalization, setPersonalization] = useState(null);
   const [editPersonalizationVisible, setEditPersonalizationVisible] = useState(false);
   const [editPersonalization, setEditPersonalization] = useState({ role: null, concern: null, supportStyle: null });
+  const [originalPersonalization, setOriginalPersonalization] = useState({ role: null, concern: null, supportStyle: null });
   const [savingPersonalization, setSavingPersonalization] = useState(false);
-  const themeFadeAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    themeFadeAnim.setValue(0.7);
-    Animated.timing(themeFadeAnim, {
-      toValue: 1,
-      duration: 220,
-      useNativeDriver: true,
-    }).start();
-  }, [isDark, themeFadeAnim]);
+  const [trustedContact, setTrustedContact] = useState(null);
+  const [editTrustedContactVisible, setEditTrustedContactVisible] = useState(false);
+  const [editContactName, setEditContactName] = useState('');
+  const [editContactPhone, setEditContactPhone] = useState('');
+  const [savingContact, setSavingContact] = useState(false);
+  const [showContactsModal, setShowContactsModal] = useState(false);
+  const [deviceContacts, setDeviceContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -80,13 +87,15 @@ const ProfileScreen = ({ navigation }) => {
       const profileData = await fetchProfileData();
       const moodData = await fetchMoodHistory(profileData.userId);
       const personalizationData = await getPersonalization();
+      const trustedContactData = await getTrustedContact();
 
       setProfile(profileData);
       setNotificationsEnabled(profileData.notificationsEnabled !== false);
       setMoods(moodData);
       setPersonalization(personalizationData);
+      setTrustedContact(trustedContactData);
     } catch (error) {
-      console.error('[Profile] Load error:', error.message || error);
+      console.warn('[Profile] Load error:', error.message || error);
       Alert.alert(t('profile.profileError'), error.message || t('profile.loadFailed', { defaultValue: 'Could not load profile data. Please try again.' }));
     } finally {
       setLoading(false);
@@ -257,11 +266,13 @@ const ProfileScreen = ({ navigation }) => {
 
   const handleEditPersonalization = () => {
     if (personalization) {
-      setEditPersonalization({
+      const personalizationData = {
         role: personalization.role || null,
         concern: personalization.concern || null,
         supportStyle: personalization.supportStyle || null,
-      });
+      };
+      setEditPersonalization(personalizationData);
+      setOriginalPersonalization(personalizationData);
     }
     setEditPersonalizationVisible(true);
   };
@@ -301,200 +312,486 @@ const ProfileScreen = ({ navigation }) => {
     navigation.navigate('Home');
   };
 
+  const handleEditTrustedContact = () => {
+    if (trustedContact) {
+      setEditContactName(trustedContact.name || '');
+      setEditContactPhone(trustedContact.phone || '');
+    } else {
+      setEditContactName('');
+      setEditContactPhone('');
+    }
+    setEditTrustedContactVisible(true);
+  };
+
+  const handleSaveTrustedContact = async () => {
+    const trimmedName = editContactName.trim();
+    const trimmedPhone = editContactPhone.trim();
+
+    if (!trimmedName || !trimmedPhone) {
+      Alert.alert(
+        t('trustedContact.errorTitle', { defaultValue: 'Incomplete' }),
+        t('trustedContact.fillAllFields', { defaultValue: 'Please fill in all fields' })
+      );
+      return;
+    }
+
+    const phoneRegex = /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/;
+    if (!phoneRegex.test(trimmedPhone.replace(/\s/g, ''))) {
+      Alert.alert(
+        t('trustedContact.invalidPhone', { defaultValue: 'Invalid Phone' }),
+        t('trustedContact.invalidPhoneMsg', { defaultValue: 'Please enter a valid phone number' })
+      );
+      return;
+    }
+
+    try {
+      setSavingContact(true);
+      await updateTrustedContact(trimmedName, trimmedPhone.replace(/\s/g, ''));
+      const updated = await getTrustedContact();
+      setTrustedContact(updated);
+      setEditTrustedContactVisible(false);
+      Alert.alert(t('profile.success'), t('trustedContact.contactSaved', { defaultValue: 'Trusted contact saved!' }));
+    } catch (error) {
+      console.error('[Profile] Trusted contact update error:', error.message || error);
+      Alert.alert(
+        t('trustedContact.errorSaving', { defaultValue: 'Error' }),
+        error.message || t('trustedContact.errorSavingMsg', { defaultValue: 'Failed to save contact.' })
+      );
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  const handleOpenContactsForEdit = async () => {
+    try {
+      setLoadingContacts(true);
+      const permission = await Contacts.requestPermissionsAsync();
+      
+      if (permission.status !== 'granted') {
+        Alert.alert(
+          t('trustedContact.permissionRequired', { defaultValue: 'Permission Required' }),
+          t('trustedContact.contactsPermissionText', { defaultValue: 'Please grant contacts permission to select a contact.' })
+        );
+        setLoadingContacts(false);
+        return;
+      }
+
+      const { data } = await Contacts.getContactsAsync({
+        fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
+      });
+
+      if (data.length > 0) {
+        const contactsWithPhone = data
+          .filter(contact => contact.phoneNumbers && contact.phoneNumbers.length > 0)
+          .map(contact => ({
+            id: contact.id,
+            name: contact.name || 'Unknown',
+            phones: contact.phoneNumbers.map(p => p.number),
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        
+        setDeviceContacts(contactsWithPhone);
+        setShowContactsModal(true);
+      } else {
+        Alert.alert(
+          t('trustedContact.noContacts', { defaultValue: 'No Contacts' }),
+          t('trustedContact.noContactsMsg', { defaultValue: 'No contacts found on your device.' })
+        );
+      }
+    } catch (error) {
+      console.error('Error accessing contacts:', error);
+      Alert.alert('Error', 'Failed to access contacts. Please try again.');
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  const handleSelectContactForEdit = (contact) => {
+    setEditContactName(contact.name);
+    if (contact.phones && contact.phones.length > 0) {
+      setEditContactPhone(contact.phones[0]);
+    }
+    setShowContactsModal(false);
+  };
+
+  const handleRemoveTrustedContact = () => {
+    Alert.alert(
+      t('trustedContact.removeConfirm', { defaultValue: 'Remove Trusted Contact' }),
+      t('trustedContact.removeConfirmMsg', { defaultValue: 'Are you sure? You can add another contact later.' }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.remove', { defaultValue: 'Remove' }),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeTrustedContact();
+              setTrustedContact(null);
+              Alert.alert(t('profile.success'), t('trustedContact.contactRemoved', { defaultValue: 'Trusted contact removed.' }));
+            } catch (error) {
+              console.error('[Profile] Remove trusted contact error:', error);
+              Alert.alert(t('profile.updateFailed'), error.message || 'Failed to remove contact.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleOpenContacts = async () => {
+    try {
+      setLoadingContacts(true);
+      const permission = await Contacts.requestPermissionsAsync();
+
+      if (permission.status !== 'granted') {
+        Alert.alert(
+          t('trustedContact.permissionRequired', { defaultValue: 'Permission Required' }),
+          t('trustedContact.contactsPermissionText', { defaultValue: 'Please grant contacts permission.' })
+        );
+        setLoadingContacts(false);
+        return;
+      }
+
+      const { data } = await Contacts.getContactsAsync({
+        fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
+      });
+
+      if (data.length > 0) {
+        const contactsWithPhone = data
+          .filter(contact => contact.phoneNumbers && contact.phoneNumbers.length > 0)
+          .map(contact => ({
+            id: contact.id,
+            name: contact.name || 'Unknown',
+            phones: contact.phoneNumbers.map(p => p.number),
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+        setDeviceContacts(contactsWithPhone);
+        setShowContactsModal(true);
+      } else {
+        Alert.alert(
+          t('trustedContact.noContacts', { defaultValue: 'No Contacts' }),
+          t('trustedContact.noContactsMsg', { defaultValue: 'No contacts found.' })
+        );
+      }
+    } catch (error) {
+      console.error('Error accessing contacts:', error);
+      Alert.alert('Error', 'Failed to access contacts.');
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  const handleSelectContact = (contact) => {
+    setEditContactName(contact.name);
+    if (contact.phones && contact.phones.length > 0) {
+      setEditContactPhone(contact.phones[0]);
+    }
+    setShowContactsModal(false);
+  };
+
   if (loading) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color="#4A90E2" />
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: isDark ? '#0F172A' : '#F7F9FC' }]}>
+        <ActivityIndicator size="large" color="#60A5FA" />
         <Text style={[styles.loadingText, { color: theme.mutedText }]}>{t('profile.loading')}</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: theme.background }]}>
-      {!isDark ? <View style={styles.bgCircleTop} /> : null}
-      {!isDark ? <View style={styles.bgCircleBottom} /> : null}
+    <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? '#0F172A' : '#F7F9FC' }]}>
+      {/* Animated Background Gradient Circles */}
+      {isDark && (
+        <>
+          <Animated.View style={[styles.bgGradientCircle, styles.bgCircleTop]} />
+          <Animated.View style={[styles.bgGradientCircle, styles.bgCircleBottom]} />
+        </>
+      )}
 
       <Animated.ScrollView
-        style={{ opacity: themeFadeAnim }}
-        contentContainerStyle={styles.scrollContent}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={theme.primary} />}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#60A5FA" />}
       >
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={handleGoBack}
-            style={[styles.backButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-            accessibilityRole="button"
-            accessibilityLabel={t('profile.goBack')}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.backButtonText, { color: theme.text }]}>← {t('common.back')}</Text>
-          </TouchableOpacity>
+        {/* ===== HEADER SECTION (TOP HERO AREA) ===== */}
+        <View style={styles.heroSection}>
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatarGradientBg}>
+              {updatingPhoto ? (
+                <ActivityIndicator size="large" color="#6C8EFF" />
+              ) : profile?.photoURL ? (
+                <Text style={{ fontSize: 48 }}>👤</Text>
+              ) : (
+                <Text style={{ fontSize: 48 }}>👤</Text>
+              )}
+            </View>
+            <Pressable
+              onPress={handleChangePhoto}
+              disabled={updatingPhoto}
+              style={styles.editBadge}
+            >
+              <MaterialCommunityIcons name="pencil" size={14} color="#FFFFFF" />
+            </Pressable>
+          </View>
+
+          <Text style={styles.heroGreeting}>
+            Hello, {profile?.fullName ? profile.fullName.split(' ')[0] : 'friend'} 👋
+          </Text>
+          <Text style={styles.heroSubtitle}>
+            Your emotional wellness companion
+          </Text>
+
+          <View style={styles.statusPill}>
+            <Text style={styles.statusPillText}>🟢 Stable and improving</Text>
+          </View>
         </View>
 
-        <ProfileHeader
-          fullName={profile?.fullName}
-          email={profile?.email}
-          photoURL={profile?.photoURL}
-          onPhotoPress={handleChangePhoto}
-          photoLoading={updatingPhoto}
-        />
-
-        <InfoCard title={t('profile.profileInfo')} actionLabel={t('profile.editProfile')} onActionPress={handleEditProfile}>
-          <View style={[styles.infoRow, { borderBottomColor: theme.border }]}> 
-            <Text style={[styles.infoLabel, { color: theme.mutedText }]}>{t('profile.fullName')}</Text>
-            <Text style={[styles.infoValue, { color: theme.text }]}>{profile?.fullName || t('profile.mindcareUser')}</Text>
+        {/* ===== AI COMPANION SECTION ===== */}
+        <Animated.View entering={FadeInDown.delay(100).duration(600)} style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Your AI Companion Style</Text>
+            <Pressable onPress={handleEditPersonalization} style={styles.iconButton}>
+              <MaterialCommunityIcons name="pencil" size={18} color="#6C8EFF" />
+            </Pressable>
           </View>
 
-          <View style={styles.infoRowNoBorder}>
-            <Text style={[styles.infoLabel, { color: theme.mutedText }]}>{t('profile.email')}</Text>
-            <Text style={[styles.infoValue, { color: theme.text }]}>{profile?.email || t('profile.notAvailable')}</Text>
+          <View style={styles.aiChipsContainer}>
+            {personalization?.role || personalization?.concern || personalization?.supportStyle ? (
+              <>
+                {personalization.role && (
+                  <View style={[styles.aiChip, { backgroundColor: '#EAF2FF' }]}>
+                    <Text style={[styles.aiChipText, { color: '#6C8EFF' }]}>🎓 {personalization.role}</Text>
+                  </View>
+                )}
+                {personalization.supportStyle && (
+                  <View style={[styles.aiChip, { backgroundColor: '#F3ECFF' }]}>
+                    <Text style={[styles.aiChipText, { color: '#A98EFF' }]}>🌿 {personalization.supportStyle}</Text>
+                  </View>
+                )}
+                {personalization.concern && (
+                  <View style={[styles.aiChip, { backgroundColor: '#FFF0F5' }]}>
+                    <Text style={[styles.aiChipText, { color: '#FF8DA1' }]}>🧠 {personalization.concern}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <Text style={styles.emptyText}>Tap the pencil to personalize your AI.</Text>
+            )}
           </View>
-        </InfoCard>
+        </Animated.View>
 
-        <InfoCard title={t('language.change')}>
-          <Text style={[styles.infoLabel, { color: theme.mutedText }]}>{t('language.current')}</Text>
-          <Text style={[styles.infoValue, { color: theme.text }]}>
-            {languageMeta?.[language]?.nativeName || language}
-          </Text>
-          <View style={styles.languageListWrap}>
+        {/* ===== EMOTIONAL JOURNEY SECTION ===== */}
+        <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Emotional Journey</Text>
+          
+          {moods.length === 0 ? (
+            <View style={styles.emptyJourneyCard}>
+              <MaterialCommunityIcons name="chart-timeline-variant" size={32} color="#A98EFF" style={{ opacity: 0.5, marginBottom: 8 }} />
+              <Text style={styles.emptyJourneyText}>Start tracking your mood to visualize your emotional journey.</Text>
+            </View>
+          ) : (
+            <View style={styles.timelineContainer}>
+              {moods.slice(0, 5).map((item, index) => (
+                <View key={item.id} style={styles.timelineRow}>
+                  <View style={styles.timelineNodeContainer}>
+                    <View style={styles.timelineNode} />
+                    {index < Math.min(4, moods.length - 1) && <View style={styles.timelineLine} />}
+                  </View>
+                  <View style={styles.timelineContent}>
+                    <Text style={styles.timelineEmoji}>
+                      {item.mood === 'happy' ? '😊' : item.mood === 'sad' ? '😔' : item.mood === 'anxious' ? '😟' : '🤔'}
+                    </Text>
+                    <View>
+                      <Text style={styles.timelineMood}>
+                        {item.mood?.charAt(0).toUpperCase() + item.mood?.slice(1) || 'Neutral'}
+                      </Text>
+                      <Text style={styles.timelineDate}>
+                        {new Date(item.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </Animated.View>
+
+        {/* ===== SAFETY CIRCLE SECTION ===== */}
+        <Animated.View entering={FadeInDown.delay(300).duration(600)} style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Safety Circle</Text>
+          
+          {trustedContact ? (
+            <View style={styles.safetyCard}>
+              <View style={styles.safetyAvatar}>
+                <Text style={styles.safetyAvatarText}>
+                  {trustedContact.name?.charAt(0).toUpperCase() || '👤'}
+                </Text>
+              </View>
+              <View style={styles.safetyInfo}>
+                <Text style={styles.safetyName}>{trustedContact.name}</Text>
+                <Text style={styles.safetyRelation}>{trustedContact.phone}</Text>
+              </View>
+              <Pressable onPress={handleEditTrustedContact} style={styles.iconButton}>
+                <MaterialCommunityIcons name="pencil" size={18} color="#6C8EFF" />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable onPress={handleEditTrustedContact} style={styles.safetyCtaCard}>
+              <MaterialCommunityIcons name="heart-plus-outline" size={24} color="#6C8EFF" style={{ marginBottom: 8 }} />
+              <Text style={styles.safetyCtaText}>💙 Add someone you trust</Text>
+            </Pressable>
+          )}
+        </Animated.View>
+
+        {/* ===== ACCOUNT INFORMATION SECTION ===== */}
+        <Animated.View entering={FadeInDown.delay(400).duration(600)} style={styles.sectionContainer}>
+          <View style={styles.accountCard}>
+            <Pressable onPress={handleEditProfile} style={styles.accountEditButton}>
+              <MaterialCommunityIcons name="pencil" size={18} color="#6B7280" />
+            </Pressable>
+            
+            <View style={styles.accountRow}>
+              <MaterialCommunityIcons name="account-outline" size={20} color="#6C8EFF" style={styles.accountIcon} />
+              <View>
+                <Text style={styles.accountLabel}>FULL NAME</Text>
+                <Text style={styles.accountValue}>{profile?.fullName || 'Not set'}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.accountDivider} />
+            
+            <View style={styles.accountRow}>
+              <MaterialCommunityIcons name="email-outline" size={20} color="#6C8EFF" style={styles.accountIcon} />
+              <View>
+                <Text style={styles.accountLabel}>EMAIL</Text>
+                <Text style={styles.accountValue}>{profile?.email || 'Not set'}</Text>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* ===== LANGUAGE SECTION ===== */}
+        <Animated.View entering={FadeInDown.delay(500).duration(600)} style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>🌐 Languages</Text>
+          <View style={styles.languageChipsContainer}>
             {supportedLanguages.map((code) => {
               const isActive = language === code;
               return (
-                <TouchableOpacity
+                <Pressable
                   key={code}
-                  style={[
-                    styles.languageChip,
-                    {
-                      borderColor: isActive ? theme.primary : theme.border,
-                      backgroundColor: isActive ? theme.inputBackground : theme.card,
-                    },
-                  ]}
-                  onPress={() => handleLanguageChange(code)}
-                  activeOpacity={0.85}
+                  onPress={() => {
+                    handleLanguageChange(code);
+                    Haptics.selectionAsync();
+                  }}
+                  style={[styles.languageChip, isActive && styles.languageChipActive]}
                 >
-                  <Text style={[styles.languageChipText, { color: isActive ? theme.primary : theme.text }]}>
+                  <Text style={[styles.languageChipText, isActive && styles.languageChipTextActive]}>
                     {languageMeta?.[code]?.nativeName || code}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               );
             })}
           </View>
-        </InfoCard>
+        </Animated.View>
 
-        <InfoCard title={t('profile.recentMoodHistory')}>
-          {moods.length === 0 ? (
-            <Text style={[styles.emptyText, { color: theme.mutedText }]}>{t('profile.noMoodRecords')}</Text>
-          ) : (
-            moods.map((item) => (
-              <MoodItem key={item.id} mood={item.mood} createdAt={item.createdAt} />
-            ))
-          )}
-        </InfoCard>
-
-        {/* Personalization Info Card */}
-        <InfoCard title={t('personalization.preferences', { defaultValue: 'AI Personalization' })} actionLabel={t('profile.editProfile')} onActionPress={handleEditPersonalization}>
-          {personalization ? (
-            <>
-              <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-                <Text style={[styles.infoLabel, { color: theme.mutedText }]}>Role</Text>
-                <Text style={[styles.infoValue, { color: theme.text }]}>{personalization.role || 'Not set'}</Text>
+        {/* ===== SETTINGS SECTION ===== */}
+        <Animated.View entering={FadeInDown.delay(600).duration(600)} style={styles.sectionContainer}>
+          <View style={styles.settingsCard}>
+            <View style={styles.settingRow}>
+              <MaterialCommunityIcons name="moon-waning-crescent" size={22} color="#A98EFF" style={styles.settingIcon} />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Dark Mode</Text>
+                <Text style={styles.settingSubtitle}>Soothing for nighttime</Text>
               </View>
-              <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-                <Text style={[styles.infoLabel, { color: theme.mutedText }]}>Concern</Text>
-                <Text style={[styles.infoValue, { color: theme.text }]}>{personalization.concern || 'Not set'}</Text>
-              </View>
-              <View style={styles.infoRowNoBorder}>
-                <Text style={[styles.infoLabel, { color: theme.mutedText }]}>Support Style</Text>
-                <Text style={[styles.infoValue, { color: theme.text }]}>{personalization.supportStyle || 'Not set'}</Text>
-              </View>
-            </>
-          ) : (
-            <Text style={[styles.emptyText, { color: theme.mutedText }]}>No personalization data</Text>
-          )}
-        </InfoCard>
-
-        <InfoCard title={t('profile.appearance')}>
-          <View style={styles.notificationRow}>
-            <View style={styles.notificationTextWrap}>
-              <Text style={[styles.notificationTitle, { color: theme.text }]}>{t('profile.darkMode')}</Text>
-              <Text style={[styles.notificationSubtitle, { color: theme.mutedText }]}>{t('profile.darkModeSubtitle')}</Text>
+              <Switch
+                value={isDark}
+                onValueChange={handleToggleDarkMode}
+                trackColor={{ false: '#E5E7EB', true: '#A98EFF' }}
+                thumbColor="#FFFFFF"
+              />
             </View>
-            <Switch
-              value={isDark}
-              onValueChange={handleToggleDarkMode}
-              trackColor={{ false: '#CBDCE8', true: '#6B86A1' }}
-              thumbColor={isDark ? '#6FAEFF' : '#F5FAFF'}
-            />
+            
+            <View style={styles.settingDivider} />
+            
+            <View style={styles.settingRow}>
+              <MaterialCommunityIcons name="bell-outline" size={22} color="#6C8EFF" style={styles.settingIcon} />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Supportive Reminders</Text>
+                <Text style={styles.settingSubtitle}>Daily check-ins & encouragement</Text>
+              </View>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={handleToggleNotifications}
+                disabled={updatingNotifications}
+                trackColor={{ false: '#E5E7EB', true: '#6C8EFF' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
           </View>
-        </InfoCard>
+        </Animated.View>
 
-        <InfoCard title={t('profile.notifications')}>
-          <View style={styles.notificationRow}>
-            <View style={styles.notificationTextWrap}>
-              <Text style={[styles.notificationTitle, { color: theme.text }]}>{t('profile.supportiveReminders')}</Text>
-              <Text style={[styles.notificationSubtitle, { color: theme.mutedText }]}>
-                {t('profile.supportiveRemindersSubtitle')}
-              </Text>
-            </View>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={handleToggleNotifications}
-              disabled={updatingNotifications}
-              trackColor={{ false: '#CBDCE8', true: '#9EC9E8' }}
-              thumbColor={notificationsEnabled ? '#2A7FBF' : '#F5FAFF'}
-            />
-          </View>
-          {updatingNotifications ? (
-            <View style={styles.notificationSavingWrap}>
-              <ActivityIndicator size="small" color="#4A90E2" />
-              <Text style={[styles.notificationSavingText, { color: theme.mutedText }]}>{t('profile.updatingPreference')}</Text>
-            </View>
-          ) : null}
-        </InfoCard>
+        {/* ===== LOGOUT BUTTON ===== */}
+        <Animated.View entering={FadeInDown.delay(700).duration(600)} style={styles.logoutContainer}>
+          <Pressable onPress={handleLogout} disabled={loggingOut} style={styles.logoutButton}>
+            {loggingOut ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="logout" size={20} color="#EF4444" style={{ marginRight: 8 }} />
+                <Text style={styles.logoutText}>Logout</Text>
+              </>
+            )}
+          </Pressable>
+        </Animated.View>
+</Animated.ScrollView>
 
-
-
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} disabled={loggingOut}>
-          {loggingOut ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.logoutText}>{t('profile.logout')}</Text>
-          )}
-        </TouchableOpacity>
-      </Animated.ScrollView>
-
+      {/* ===== MODALS ===== */}
+      {/* Edit Name Modal */}
       <Modal visible={editVisible} transparent animationType="fade" onRequestClose={() => setEditVisible(false)}>
-        <View style={[styles.modalBackdrop, { backgroundColor: theme.overlay }]}>
-          <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>{t('profile.editTitle')}</Text>
-            <Text style={[styles.modalLabel, { color: theme.mutedText }]}>{t('profile.fullName')}</Text>
+        <View style={[styles.modalBackdrop, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.4)' }]}>
+          <View style={[styles.modalCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? '#E2E8F0' : '#1F2937' }]}>
+              {t('profile.editTitle')}
+            </Text>
+            <Text style={[styles.modalLabel, { color: isDark ? '#94A3B8' : '#6B7280' }]}>
+              {t('profile.fullName')}
+            </Text>
             <TextInput
               value={editName}
               onChangeText={handleNameChange}
               placeholder={t('profile.enterFullName')}
-              placeholderTextColor={theme.mutedText}
+              placeholderTextColor={isDark ? '#64748B' : '#9CA3AF'}
               style={[
                 styles.modalInput,
                 {
-                  color: theme.text,
-                  borderColor: theme.border,
-                  backgroundColor: theme.inputBackground,
+                  color: isDark ? '#E2E8F0' : '#1F2937',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(96, 165, 250, 0.05)',
+                  borderColor: editNameError ? '#EF4444' : (isDark ? 'rgba(96, 165, 250, 0.3)' : 'rgba(96, 165, 250, 0.2)'),
                 },
                 editNameError ? styles.modalInputError : null,
               ]}
               editable={!savingProfile}
               autoCapitalize="words"
             />
-            {editNameError ? <Text style={styles.inlineErrorText}>{editNameError}</Text> : null}
+            {editNameError ? <Text style={[styles.errorText, { color: '#EF4444' }]}>{editNameError}</Text> : null}
 
             <View style={styles.modalActions}>
-              <Pressable style={styles.cancelButton} onPress={() => setEditVisible(false)} disabled={savingProfile}>
-                <Text style={[styles.cancelText, { color: theme.mutedText }]}>{t('common.cancel')}</Text>
+              <Pressable
+                style={styles.cancelButton}
+                onPress={() => setEditVisible(false)}
+                disabled={savingProfile}
+              >
+                <Text style={[styles.cancelText, { color: isDark ? '#94A3B8' : '#6B7280' }]}>
+                  {t('common.cancel')}
+                </Text>
               </Pressable>
               <Pressable
-                style={[styles.saveButton, (savingProfile || !!editNameError) ? styles.saveButtonDisabled : null]}
+                style={[
+                  styles.saveButton,
+                  { backgroundColor: (savingProfile || !!editNameError) ? '#94A3B8' : '#60A5FA' }
+                ]}
                 onPress={handleSaveProfile}
                 disabled={savingProfile || !!editNameError}
               >
@@ -509,97 +806,513 @@ const ProfileScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {/* Personalization Edit Modal */}
-      <Modal visible={editPersonalizationVisible} transparent animationType="fade" onRequestClose={() => setEditPersonalizationVisible(false)}>
-        <View style={[styles.modalBackdrop, { backgroundColor: theme.overlay }]}>
-          <ScrollView contentContainerStyle={styles.modalScrollContent}>
-            <View style={[styles.modalCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>Edit AI Personalization</Text>
+      {/* Trusted Contact Modal */}
+      <Modal visible={editTrustedContactVisible} transparent animationType="slide" onRequestClose={() => setEditTrustedContactVisible(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.4)' }}>
+          <View style={{
+            backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingHorizontal: 24,
+            paddingTop: 28,
+            paddingBottom: 32,
+            maxHeight: '85%',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+            elevation: 10,
+          }}>
+            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+              {/* Header */}
+              <View style={{ marginBottom: 28, alignItems: 'center' }}>
+                <Text style={{
+                  fontSize: 26,
+                  fontWeight: '700',
+                  color: isDark ? '#E2E8F0' : '#1F2937',
+                  marginBottom: 8,
+                }}>
+                  {trustedContact ? 'Edit Contact' : 'Add Trusted Contact'}
+                </Text>
+                <Text style={{
+                  fontSize: 14,
+                  color: isDark ? '#94A3B8' : '#6B7280',
+                  textAlign: 'center',
+                }}>
+                  Someone to reach out to during difficult moments
+                </Text>
+              </View>
 
-              {/* Role Selection */}
-              <Text style={[styles.modalLabel, { color: theme.mutedText }]}>Role</Text>
-              <View style={{ gap: 8, marginBottom: 16 }}>
-                {['student', 'professional', 'homemaker'].map((role) => (
-                  <TouchableOpacity
-                    key={role}
-                    onPress={() => setEditPersonalization({ ...editPersonalization, role })}
+              {/* Contact Name Input */}
+              <View style={{ marginBottom: 20 }}>
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: isDark ? '#94A3B8' : '#6B7280',
+                  textTransform: 'uppercase',
+                  letterSpacing: 1,
+                  marginBottom: 10,
+                }}>
+                  Contact Name
+                </Text>
+                <TextInput
+                  placeholder={t('trustedContact.contactNamePlaceholder', { defaultValue: 'e.g., Mom, Friend' })}
+                  placeholderTextColor={isDark ? '#64748B' : '#9CA3AF'}
+                  value={editContactName}
+                  onChangeText={setEditContactName}
+                  editable={!savingContact}
+                  autoCapitalize="words"
+                  style={{
+                    height: 56,
+                    borderRadius: 18,
+                    paddingHorizontal: 16,
+                    fontSize: 16,
+                    fontWeight: '500',
+                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(96, 165, 250, 0.05)',
+                    color: isDark ? '#E2E8F0' : '#1F2937',
+                    borderWidth: 1.5,
+                    borderColor: isDark ? 'rgba(96, 165, 250, 0.3)' : 'rgba(96, 165, 250, 0.2)',
+                  }}
+                />
+              </View>
+
+              {/* Phone Input */}
+              <View style={{ marginBottom: 32 }}>
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: isDark ? '#94A3B8' : '#6B7280',
+                  textTransform: 'uppercase',
+                  letterSpacing: 1,
+                  marginBottom: 10,
+                }}>
+                  Phone Number
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                  <TextInput
+                    placeholder={t('trustedContact.phoneNumberPlaceholder', { defaultValue: '+91 98765 43210' })}
+                    placeholderTextColor={isDark ? '#64748B' : '#9CA3AF'}
+                    value={editContactPhone}
+                    onChangeText={setEditContactPhone}
+                    keyboardType="phone-pad"
+                    editable={!savingContact}
                     style={{
-                      paddingVertical: 12,
-                      paddingHorizontal: 14,
-                      borderRadius: 12,
-                      borderWidth: 2,
-                      borderColor: editPersonalization.role === role ? '#4A90E2' : theme.border,
-                      backgroundColor: editPersonalization.role === role ? '#EAF4FF' : theme.inputBackground,
+                      flex: 1,
+                      height: 56,
+                      borderRadius: 18,
+                      paddingHorizontal: 16,
+                      fontSize: 16,
+                      fontWeight: '500',
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(96, 165, 250, 0.05)',
+                      color: isDark ? '#E2E8F0' : '#1F2937',
+                      borderWidth: 1.5,
+                      borderColor: isDark ? 'rgba(96, 165, 250, 0.3)' : 'rgba(96, 165, 250, 0.2)',
+                    }}
+                  />
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      handleOpenContactsForEdit();
+                    }}
+                    disabled={savingContact || loadingContacts}
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 18,
+                      backgroundColor: isDark ? 'rgba(96, 165, 250, 0.2)' : 'rgba(96, 165, 250, 0.1)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      borderWidth: 1.5,
+                      borderColor: '#60A5FA',
                     }}
                   >
-                    <Text style={{ color: editPersonalization.role === role ? '#4A90E2' : theme.text, fontWeight: '500' }}>
-                      {role.charAt(0).toUpperCase() + role.slice(1)}
-                    </Text>
+                    <MaterialCommunityIcons
+                      name={loadingContacts ? 'loading' : 'contacts'}
+                      size={22}
+                      color="#60A5FA"
+                    />
                   </TouchableOpacity>
-                ))}
+                </View>
               </View>
+            </ScrollView>
 
-              {/* Concern Selection */}
-              <Text style={[styles.modalLabel, { color: theme.mutedText }]}>Main Concern</Text>
-              <View style={{ gap: 8, marginBottom: 16 }}>
-                {['stress', 'anxiety', 'overthinking', 'lowMood'].map((concern) => (
-                  <TouchableOpacity
-                    key={concern}
-                    onPress={() => setEditPersonalization({ ...editPersonalization, concern })}
-                    style={{
-                      paddingVertical: 12,
-                      paddingHorizontal: 14,
-                      borderRadius: 12,
-                      borderWidth: 2,
-                      borderColor: editPersonalization.concern === concern ? '#4A90E2' : theme.border,
-                      backgroundColor: editPersonalization.concern === concern ? '#EAF4FF' : theme.inputBackground,
-                    }}
-                  >
-                    <Text style={{ color: editPersonalization.concern === concern ? '#4A90E2' : theme.text, fontWeight: '500' }}>
-                      {concern.charAt(0).toUpperCase() + concern.replace(/([A-Z])/g, ' $1').slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+            {/* Footer Buttons */}
+            <View style={{
+              flexDirection: 'row',
+              gap: 12,
+              marginTop: 8,
+              borderTopWidth: 1,
+              borderTopColor: isDark ? 'rgba(148, 163, 184, 0.1)' : 'rgba(96, 165, 250, 0.1)',
+              paddingTop: 16,
+            }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setEditTrustedContactVisible(false);
+                  setEditContactName('');
+                  setEditContactPhone('');
+                }}
+                disabled={savingContact}
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  borderRadius: 16,
+                  backgroundColor: 'transparent',
+                  borderWidth: 1.5,
+                  borderColor: isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(96, 165, 250, 0.2)',
+                }}
+              >
+                <Text style={{
+                  textAlign: 'center',
+                  fontSize: 15,
+                  fontWeight: '600',
+                  color: isDark ? '#A7D8FF' : '#0369A1',
+                }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
 
-              {/* Support Style Selection */}
-              <Text style={[styles.modalLabel, { color: theme.mutedText }]}>Support Style</Text>
-              <View style={{ gap: 8, marginBottom: 24 }}>
-                {['calm', 'motivational', 'practical'].map((style) => (
-                  <TouchableOpacity
-                    key={style}
-                    onPress={() => setEditPersonalization({ ...editPersonalization, supportStyle: style })}
-                    style={{
-                      paddingVertical: 12,
-                      paddingHorizontal: 14,
-                      borderRadius: 12,
-                      borderWidth: 2,
-                      borderColor: editPersonalization.supportStyle === style ? '#4A90E2' : theme.border,
-                      backgroundColor: editPersonalization.supportStyle === style ? '#EAF4FF' : theme.inputBackground,
-                    }}
-                  >
-                    <Text style={{ color: editPersonalization.supportStyle === style ? '#4A90E2' : theme.text, fontWeight: '500' }}>
-                      {style.charAt(0).toUpperCase() + style.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Buttons */}
-              <View style={styles.modalButtonWrap}>
-                <Pressable style={[styles.cancelButton, { borderColor: theme.border }]} onPress={() => setEditPersonalizationVisible(false)} disabled={savingPersonalization}>
-                  <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancel</Text>
-                </Pressable>
-                <Pressable style={[styles.saveButton, savingPersonalization ? styles.saveButtonDisabled : null]} onPress={handleSavePersonalization} disabled={savingPersonalization}>
-                  {savingPersonalization ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.saveText}>Save</Text>
-                  )}
-                </Pressable>
-              </View>
+              <Pressable
+                onPress={() => {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  handleSaveTrustedContact();
+                }}
+                disabled={savingContact || !editContactName.trim() || !editContactPhone.trim()}
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  borderRadius: 16,
+                  backgroundColor: (savingContact || !editContactName.trim() || !editContactPhone.trim()) ? '#94A3B8' : '#60A5FA',
+                }}
+              >
+                {savingContact ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={{
+                    textAlign: 'center',
+                    fontSize: 15,
+                    fontWeight: '600',
+                    color: '#FFFFFF',
+                  }}>
+                    Save Contact
+                  </Text>
+                )}
+              </Pressable>
             </View>
-          </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Contacts Selection Modal */}
+      <Modal visible={showContactsModal} transparent animationType="slide" onRequestClose={() => setShowContactsModal(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#1E293B' : '#F8FAFC' }}>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: isDark ? 'rgba(148, 163, 184, 0.1)' : 'rgba(96, 165, 250, 0.1)',
+          }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#E2E8F0' : '#1F2937' }}>
+              {t('trustedContact.selectContact', { defaultValue: 'Select Contact' })}
+            </Text>
+            <TouchableOpacity onPress={() => setShowContactsModal(false)}>
+              <MaterialCommunityIcons name="close" size={24} color={isDark ? '#E2E8F0' : '#1F2937'} />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={deviceContacts}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => handleSelectContactForEdit(item)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 20,
+                  paddingVertical: 16,
+                  borderBottomWidth: 0.5,
+                  borderBottomColor: isDark ? 'rgba(148, 163, 184, 0.1)' : 'rgba(96, 165, 250, 0.1)',
+                  backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                }}
+              >
+                <View style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: isDark ? 'rgba(96, 165, 250, 0.2)' : 'rgba(96, 165, 250, 0.1)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 12,
+                }}>
+                  <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#E0E7FF' : '#0369A1' }}>
+                    {item.name[0]}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: isDark ? '#E2E8F0' : '#1F2937' }}>
+                    {item.name}
+                  </Text>
+                  <Text style={{ fontSize: 13, color: isDark ? '#94A3B8' : '#6B7280', marginTop: 4 }}>
+                    {item.phones[0]}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          />
+        </SafeAreaView>
+      </Modal>
+
+      {/* Personalization Modal */}
+      <Modal visible={editPersonalizationVisible} transparent animationType="slide" onRequestClose={() => setEditPersonalizationVisible(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.4)' }}>
+          <View style={{
+            backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingHorizontal: 20,
+            paddingTop: 24,
+            paddingBottom: 32,
+            maxHeight: '90%',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+            elevation: 10,
+          }}>
+            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+              {/* Header */}
+              <View style={{ marginBottom: 28, alignItems: 'center' }}>
+                <Text style={{
+                  fontSize: 24,
+                  fontWeight: '700',
+                  color: isDark ? '#E2E8F0' : '#1F2937',
+                  marginBottom: 8,
+                }}>
+                  Customize Your AI Style
+                </Text>
+                <Text style={{
+                  fontSize: 14,
+                  color: isDark ? '#94A3B8' : '#6B7280',
+                  textAlign: 'center',
+                }}>
+                  Help MindCare understand your needs
+                </Text>
+              </View>
+
+              {/* Role Section */}
+              <View style={{ marginBottom: 24 }}>
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: isDark ? '#94A3B8' : '#6B7280',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  marginBottom: 12,
+                }}>
+                  Your Role
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                  {[
+                    { id: 'student', icon: '🎓', label: 'Student' },
+                    { id: 'professional', icon: '💼', label: 'Professional' },
+                    { id: 'homemaker', icon: '🏠', label: 'Homemaker' },
+                  ].map((role) => (
+                    <TouchableOpacity
+                      key={role.id}
+                      onPress={() => {
+                        setEditPersonalization({ ...editPersonalization, role: role.id });
+                        Haptics.selectionAsync();
+                      }}
+                      style={{
+                        paddingVertical: 10,
+                        paddingHorizontal: 16,
+                        borderRadius: 20,
+                        backgroundColor: editPersonalization.role === role.id
+                          ? '#60A5FA'
+                          : isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(96, 165, 250, 0.05)',
+                        borderWidth: editPersonalization.role === role.id ? 0 : 1,
+                        borderColor: editPersonalization.role === role.id ? 'transparent' : (isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(96, 165, 250, 0.2)'),
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 15,
+                        fontWeight: '500',
+                        color: editPersonalization.role === role.id ? '#FFFFFF' : (isDark ? '#E0E7FF' : '#0369A1'),
+                      }}>
+                        {role.icon} {role.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Concern Section */}
+              <View style={{ marginBottom: 24 }}>
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: isDark ? '#94A3B8' : '#6B7280',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  marginBottom: 12,
+                }}>
+                  Main Concern
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                  {[
+                    { id: 'stress', icon: '😣', label: 'Stress' },
+                    { id: 'anxiety', icon: '😟', label: 'Anxiety' },
+                    { id: 'overthinking', icon: '🧠', label: 'Overthinking' },
+                    { id: 'lowMood', icon: '🌧', label: 'Low Mood' },
+                  ].map((concern) => (
+                    <TouchableOpacity
+                      key={concern.id}
+                      onPress={() => {
+                        setEditPersonalization({ ...editPersonalization, concern: concern.id });
+                        Haptics.selectionAsync();
+                      }}
+                      style={{
+                        paddingVertical: 10,
+                        paddingHorizontal: 16,
+                        borderRadius: 20,
+                        backgroundColor: editPersonalization.concern === concern.id
+                          ? '#8B5CF6'
+                          : isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(139, 92, 246, 0.05)',
+                        borderWidth: editPersonalization.concern === concern.id ? 0 : 1,
+                        borderColor: editPersonalization.concern === concern.id ? 'transparent' : (isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(139, 92, 246, 0.2)'),
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 15,
+                        fontWeight: '500',
+                        color: editPersonalization.concern === concern.id ? '#FFFFFF' : (isDark ? '#D8B4FE' : '#7C3AED'),
+                      }}>
+                        {concern.icon} {concern.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Support Style */}
+              <View style={{ marginBottom: 32 }}>
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: isDark ? '#94A3B8' : '#6B7280',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  marginBottom: 12,
+                }}>
+                  Support Style
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                  {[
+                    { id: 'calm', icon: '🌿', label: 'Calm' },
+                    { id: 'motivational', icon: '🚀', label: 'Motivational' },
+                    { id: 'practical', icon: '🔧', label: 'Practical' },
+                  ].map((style) => (
+                    <TouchableOpacity
+                      key={style.id}
+                      onPress={() => {
+                        setEditPersonalization({ ...editPersonalization, supportStyle: style.id });
+                        Haptics.selectionAsync();
+                      }}
+                      style={{
+                        paddingVertical: 10,
+                        paddingHorizontal: 16,
+                        borderRadius: 20,
+                        backgroundColor: editPersonalization.supportStyle === style.id
+                          ? '#22C55E'
+                          : isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(34, 197, 94, 0.05)',
+                        borderWidth: editPersonalization.supportStyle === style.id ? 0 : 1,
+                        borderColor: editPersonalization.supportStyle === style.id ? 'transparent' : (isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(34, 197, 94, 0.2)'),
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 15,
+                        fontWeight: '500',
+                        color: editPersonalization.supportStyle === style.id ? '#FFFFFF' : (isDark ? '#86EFAC' : '#15803D'),
+                      }}>
+                        {style.icon} {style.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Footer */}
+            <View style={{
+              flexDirection: 'row',
+              gap: 12,
+              marginTop: 12,
+              borderTopWidth: 1,
+              borderTopColor: isDark ? 'rgba(148, 163, 184, 0.1)' : 'rgba(96, 165, 250, 0.1)',
+              paddingTop: 16,
+            }}>
+              <TouchableOpacity
+                onPress={() => setEditPersonalizationVisible(false)}
+                disabled={savingPersonalization}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderRadius: 16,
+                  backgroundColor: 'transparent',
+                  borderWidth: 1.5,
+                  borderColor: isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(96, 165, 250, 0.2)',
+                }}
+              >
+                <Text style={{
+                  textAlign: 'center',
+                  fontSize: 15,
+                  fontWeight: '600',
+                  color: isDark ? '#A7D8FF' : '#0369A1',
+                }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <Pressable
+                onPress={handleSavePersonalization}
+                disabled={savingPersonalization || (
+                  editPersonalization.role === originalPersonalization.role &&
+                  editPersonalization.concern === originalPersonalization.concern &&
+                  editPersonalization.supportStyle === originalPersonalization.supportStyle
+                )}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderRadius: 16,
+                  backgroundColor: (
+                    editPersonalization.role === originalPersonalization.role &&
+                    editPersonalization.concern === originalPersonalization.concern &&
+                    editPersonalization.supportStyle === originalPersonalization.supportStyle
+                  ) ? '#94A3B8' : '#60A5FA',
+                }}
+              >
+                {savingPersonalization ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={{
+                    textAlign: 'center',
+                    fontSize: 15,
+                    fontWeight: '600',
+                    color: '#FFFFFF',
+                  }}>
+                    Save Changes
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -607,254 +1320,461 @@ const ProfileScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#F5FAFF',
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5FAFF',
   },
   loadingText: {
-    marginTop: 10,
-    color: '#446A86',
-    fontSize: 14,
+    marginTop: 12,
+    fontSize: 16,
   },
-  bgCircleTop: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: '#E3F1FF',
-    top: -120,
-    right: -80,
-    opacity: 0.8,
-  },
-  bgCircleBottom: {
-    position: 'absolute',
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    backgroundColor: '#F0F7FF',
-    bottom: -170,
-    left: -120,
-    opacity: 0.9,
+  screen: {
+    flex: 1,
+    backgroundColor: '#F6F8FC',
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 24,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
   },
-  topBar: {
-    marginBottom: 8,
-    alignItems: 'flex-start',
+  
+  // Header / Hero Section
+  heroSection: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 32,
   },
-  backButton: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 16,
   },
-  backButtonText: {
-    fontSize: 14,
+  avatarGradientBg: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#EAF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#6C8EFF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#A98EFF',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#F6F8FC',
+  },
+  heroGreeting: {
+    fontSize: 26,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    color: '#1F2937',
+    marginBottom: 4,
   },
-  infoRow: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#EAF2F8',
-    paddingBottom: 12,
+  heroSubtitle: {
+    fontSize: 15,
+    color: '#6B7280',
+    marginBottom: 16,
+  },
+  statusPill: {
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
+  },
+  statusPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+
+  // Generic Sections
+  sectionContainer: {
+    marginBottom: 28,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
     marginBottom: 12,
   },
-  infoRowNoBorder: {
-    paddingBottom: 2,
-  },
-  infoLabel: {
-    color: '#6A879D',
-    fontSize: 12,
-    marginBottom: 5,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  infoValue: {
-    color: '#1C415F',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  languageListWrap: {
-    marginTop: 10,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  languageChip: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  languageChipText: {
-    fontSize: 13,
-    fontWeight: '700',
+  iconButton: {
+    padding: 4,
   },
   emptyText: {
-    color: '#6B879D',
     fontSize: 14,
+    color: '#6B7280',
     fontStyle: 'italic',
-    paddingVertical: 8,
   },
-  notificationRow: {
+
+  // AI Companion Section
+  aiChipsContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  notificationTextWrap: {
-    flex: 1,
-    paddingRight: 10,
+  aiChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
-  notificationTitle: {
-    color: '#1C415F',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  notificationSubtitle: {
-    marginTop: 4,
-    color: '#6B879D',
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  notificationSavingWrap: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  notificationSavingText: {
-    color: '#4E7491',
-    fontSize: 12,
+  aiChipText: {
+    fontSize: 14,
     fontWeight: '600',
   },
-  chatButton: {
-    marginTop: 6,
-    marginBottom: 8,
-    backgroundColor: '#4A90E2',
-    borderRadius: 12,
-    paddingVertical: 14,
+
+  // Emotional Journey Section
+  emptyJourneyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#2A7FBF',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
     shadowRadius: 10,
-    elevation: 4,
+    elevation: 2,
   },
-  chatButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+  emptyJourneyText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  timelineContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    minHeight: 50,
+  },
+  timelineNodeContainer: {
+    width: 20,
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  timelineNode: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#6C8EFF',
+    marginTop: 6,
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#EAF2FF',
+    marginTop: 4,
+  },
+  timelineContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingBottom: 16,
+  },
+  timelineEmoji: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  timelineMood: {
     fontSize: 16,
-    letterSpacing: 0.2,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  timelineDate: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+
+  // Safety Circle
+  safetyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  safetyAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EAF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  safetyAvatarText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#6C8EFF',
+  },
+  safetyInfo: {
+    flex: 1,
+  },
+  safetyName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  safetyRelation: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  safetyCtaCard: {
+    backgroundColor: '#EAF2FF',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#CDE0FF',
+  },
+  safetyCtaText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6C8EFF',
+  },
+
+  // Account Card
+  accountCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    position: 'relative',
+  },
+  accountEditButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 10,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  accountIcon: {
+    marginRight: 16,
+  },
+  accountLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  accountValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  accountDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 12,
+    marginLeft: 36,
+  },
+
+  // Languages
+  languageChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  languageChip: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  languageChipActive: {
+    borderColor: '#6C8EFF',
+    backgroundColor: '#EAF2FF',
+  },
+  languageChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  languageChipTextActive: {
+    color: '#6C8EFF',
+    fontWeight: '600',
+  },
+
+  // Settings
+  settingsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  settingIcon: {
+    marginRight: 16,
+  },
+  settingTextContainer: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  settingSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  settingDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginLeft: 38,
+  },
+
+  // Logout
+  logoutContainer: {
+    alignItems: 'center',
+    marginTop: 10,
   },
   logoutButton: {
-    marginTop: 6,
-    backgroundColor: '#4A90E2',
-    borderRadius: 12,
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#1A3C5A',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
   },
   logoutText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 16,
-    letterSpacing: 0.2,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#EF4444',
   },
+
+  // Modal styles remaining the same generally
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(18, 40, 58, 0.35)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 18,
+    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   modalCard: {
     width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#113B57',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 14,
-    elevation: 6,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#1B3E5A',
-    marginBottom: 14,
+    color: '#1F2937',
+    marginBottom: 20,
+    textAlign: 'center',
   },
   modalLabel: {
-    fontSize: 12,
-    color: '#6A879D',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+    fontWeight: '500',
   },
   modalInput: {
-    borderWidth: 1,
-    borderColor: '#D4E6F3',
+    backgroundColor: '#F3F4F6',
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#1C415F',
-    backgroundColor: '#F8FCFF',
+    padding: 16,
+    fontSize: 16,
+    color: '#1F2937',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   modalInputError: {
-    borderColor: '#D85C5C',
-    backgroundColor: '#FFF7F7',
+    borderColor: '#EF4444',
   },
-  inlineErrorText: {
-    marginTop: 7,
-    color: '#C44D4D',
+  errorText: {
     fontSize: 12,
-    fontWeight: '500',
+    color: '#EF4444',
+    marginTop: 8,
   },
   modalActions: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 16,
+    marginTop: 24,
+    gap: 12,
   },
   cancelButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginRight: 10,
-  },
-  cancelText: {
-    color: '#486D88',
-    fontSize: 14,
-    fontWeight: '600',
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
   },
   saveButton: {
-    backgroundColor: '#4A90E2',
-    paddingVertical: 11,
-    paddingHorizontal: 18,
+    flex: 1,
+    paddingVertical: 14,
     borderRadius: 12,
-    minWidth: 84,
     alignItems: 'center',
+    backgroundColor: '#6C8EFF',
   },
-  saveButtonDisabled: {
-    backgroundColor: '#8FBBD9',
+  cancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   saveText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
   },
 });
 

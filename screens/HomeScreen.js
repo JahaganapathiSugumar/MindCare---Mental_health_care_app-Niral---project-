@@ -366,7 +366,7 @@ const HomeScreen = ({ navigation }) => {
         }).start();
       }
     } catch (error) {
-      console.error('[HomeScreen] Load error:', error.message);
+      console.warn('[HomeScreen] Load error:', error.message || error);
     } finally {
       setLoading(false);
       setMoodLoading(false);
@@ -485,6 +485,24 @@ const HomeScreen = ({ navigation }) => {
               </LinearGradient>
             </TouchableOpacity>
 
+            {/* Voice Companion Button */}
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => handleNavigate('VoiceCompanion')}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['#7E57C2', '#5E35B1']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.actionCardGradient}
+              >
+                <MaterialCommunityIcons name="microphone" size={32} color="#FFF" />
+                <Text style={styles.actionCardText}>Voice AI</Text>
+                <Text style={styles.actionCardSubtext}>Companion</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
             {/* Track Mood Button */}
             <TouchableOpacity
               style={styles.actionCard}
@@ -579,7 +597,7 @@ const HomeScreen = ({ navigation }) => {
                 {recentMoods.map((item) => {
                   const meta = getMoodMeta(item.mood);
                   return (
-                    <View key={item.id} style={[styles.moodPreviewItem, { backgroundColor: meta.soft }]}> 
+                    <View key={item.id} style={[styles.moodPreviewItem, { backgroundColor: meta.soft }]}>
                       <Text style={styles.moodPreviewEmoji}>{meta.emoji}</Text>
                       <Text style={[styles.moodPreviewLabel, { color: meta.accent }]} numberOfLines={1}>
                         {t(meta.key)}

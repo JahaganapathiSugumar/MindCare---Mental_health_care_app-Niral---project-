@@ -212,6 +212,7 @@ def chat():
         request_json = request.json or {}
         language = request_json.get('language', language)
         message = request_json.get('message', message)
+        is_voice_mode = request_json.get('isVoiceMode', False)
         language_name = resolve_language_name(language)
 
         # Validate input
@@ -225,9 +226,19 @@ def chat():
                 'error': 'Message must be a non-empty string'
             }), 400
 
-        logger.info(f"Chat request from user: {user_id}")
+        logger.info(f"Chat request from user: {user_id}, voiceMode: {is_voice_mode}")
 
-        prompt = f"""
+        if is_voice_mode:
+            prompt = f"""
+You are a warm, supportive mental health AI voice companion.
+Respond ONLY in {language_name}.
+This is a spoken voice conversation. Keep your response highly conversational, extremely concise (1-3 sentences maximum), and easy to speak out loud.
+DO NOT use lists, asterisks, bullet points, or markdown formatting. 
+If the user sounds highly anxious or stressed, speak calmly and gently offer to guide them through a brief, simple breathing exercise (e.g., "Let's take a slow, deep breath together...").
+User: {message.strip()}
+"""
+        else:
+            prompt = f"""
 You are a supportive mental health assistant.
 Respond ONLY in {language_name}.
 Be empathetic and simple.

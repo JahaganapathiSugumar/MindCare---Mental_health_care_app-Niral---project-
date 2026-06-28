@@ -172,7 +172,10 @@ const scheduleSingleNotification = async ({
         systemKey,
       },
     },
-    trigger,
+    trigger: {
+      ...trigger,
+      channelId: 'default',
+    },
   });
 
   await recordNotificationSent(userId, type);
@@ -224,16 +227,21 @@ export const setupNotificationPermissionsAndToken = async (userId) => {
     });
   }
 
-  const tokenResponse = await Notifications.getExpoPushTokenAsync({
-    projectId: getProjectId(),
-  });
+  try {
+    const tokenResponse = await Notifications.getExpoPushTokenAsync({
+      projectId: getProjectId(),
+    });
 
-  const token = tokenResponse?.data || '';
-  if (token) {
-    await setUserPushToken(userId, token);
+    const token = tokenResponse?.data || '';
+    if (token) {
+      await setUserPushToken(userId, token);
+    }
+
+    return token;
+  } catch (error) {
+    console.warn('[Notifications] Failed to get push token:', error.message);
+    return null;
   }
-
-  return token;
 };
 
 export const scheduleDailyMoodCheckIn = async ({
@@ -263,6 +271,7 @@ export const scheduleDailyMoodCheckIn = async ({
       hour: Math.max(8, Math.min(22, preferredHour)),
       minute: 0,
       repeats: true,
+      channelId: 'default',
     },
   });
 };

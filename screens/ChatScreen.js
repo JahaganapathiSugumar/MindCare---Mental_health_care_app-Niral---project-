@@ -586,6 +586,17 @@ const ChatScreen = ({ navigation, route }) => {
               maxLength={500}
             />
             <TouchableOpacity
+              style={{ padding: 8, marginRight: 4, alignSelf: 'flex-end', marginBottom: 2 }}
+              onPress={() => {
+                try {
+                  Haptics.selectionAsync();
+                } catch (e) {}
+                navigation.navigate('VoiceCompanion');
+              }}
+            >
+              <Ionicons name="mic-outline" size={24} color={theme.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.sendButton, (sending || !inputText.trim()) && styles.sendButtonDisabled]}
               onPress={handleSend}
               disabled={sending || !inputText.trim()}

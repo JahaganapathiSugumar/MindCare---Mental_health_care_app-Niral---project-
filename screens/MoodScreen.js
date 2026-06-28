@@ -87,7 +87,7 @@ const MoodScreen = ({ navigation }) => {
         setSelectedMood((moods[0]?.mood || 'neutral').toLowerCase());
       }
     } catch (error) {
-      console.error('[MoodScreen] Load error:', error.message || error);
+      console.warn('[MoodScreen] Load error:', error.message || error);
       setRecentAIMoods([]);
     } finally {
       setLoading(false);

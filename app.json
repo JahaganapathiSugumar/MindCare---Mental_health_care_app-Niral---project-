@@ -3,9 +3,8 @@
     "name": "MindCare",
     "slug": "mentalhealth",
     "owner": "jaha777",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "scheme": "mindcare",
+    "runtimeVersion": "1.0.0",
     "version": "1.0.0",
     "icon": "./assets/icon.png",
     "orientation": "portrait",
@@ -18,7 +17,7 @@
     ],
     "ios": {
       "icon": "./assets/icon.png",
-      "supportsTabletMode": true,
+      "supportsTablet": true,
       "bundleIdentifier": "com.mentalcare.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -43,7 +42,14 @@
           "color": "#2A7FBF"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@dev-amirzubair/react-native-voice",
+        {
+          "microphonePermission": "Allow MindCare to access your microphone for voice conversations.",
+          "speechRecognitionPermission": "Allow MindCare to securely recognize your speech."
+        }
+      ]
     ],
     "jsEngine": "hermes",
     "extra": {

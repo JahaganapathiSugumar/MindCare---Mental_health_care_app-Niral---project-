@@ -51,7 +51,7 @@ const apiClient = axios.create({
 let insightsEndpointUnavailable = false;
 
 // Send message to AI backend
-export const sendMessageToAI = async (userId, message, language = i18n.language || 'en') => {
+export const sendMessageToAI = async (userId, message, language = i18n.language || 'en', isVoiceMode = false) => {
   try {
     // Get user personalization data
     const personalization = await getPersonalization();
@@ -60,6 +60,7 @@ export const sendMessageToAI = async (userId, message, language = i18n.language 
       userId,
       message,
       language,
+      isVoiceMode,
       // Include personalization data if available
       ...(personalization && {
         role: personalization.role,
