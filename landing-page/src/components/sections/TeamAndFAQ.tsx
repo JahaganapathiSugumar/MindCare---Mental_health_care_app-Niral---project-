@@ -9,7 +9,7 @@ import { ChevronDown, GraduationCap, Download, FileText, GitBranch } from "lucid
 export const TeamAndFAQ = () => {
   const team = [
     { name: "Jahaganapathi S", role: "Developer", image: "https://res.cloudinary.com/dyxu6ylng/image/upload/v1785742757/jahaganapathi.jpg" },
-    { name: "Kajol Sushmitha K", role: "Developer", image: "" },
+    { name: "Kajol Sushmitha K", role: "Developer", image: "https://res.cloudinary.com/dyxu6ylng/image/upload/v1785743715/kajol.jpg" },
     { name: "Kamal Kishore V", role: "Developer", image: "https://res.cloudinary.com/dyxu6ylng/image/upload/v1785742914/kamal.jpg" },
   ];
 

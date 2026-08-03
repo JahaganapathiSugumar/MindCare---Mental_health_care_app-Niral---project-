@@ -23,6 +23,8 @@ import { useTheme } from '../context/ThemeContext';
 import { fetchDailyReflections, generateAIInsights, runAgentEvaluation } from '../services/apiService';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
+import NovaCompanion from '../components/NovaCompanion';
+import NovaTourModal from '../components/NovaTourModal';
 
 const MOOD_META = {
   happy: { emoji: '😊', key: 'moods.happy', accent: '#3FAF62', soft: '#EAF9EF' },
@@ -150,6 +152,9 @@ const HomeScreen = ({ navigation }) => {
   const [reflectionsLoading, setReflectionsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recentChats, setRecentChats] = useState([]);
+  const [novaState, setNovaState] = useState('idle');
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState(null);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -412,6 +417,7 @@ const HomeScreen = ({ navigation }) => {
           />
         }
       >
+        {tourActive && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(4, 13, 26, 0.7)', zIndex: 90, elevation: 90 }]} pointerEvents="none" />}
         {/* Header Section with Gradient */}
         <LinearGradient
           colors={isDark ? ['#1A2B3A', '#162432'] : ['#4A90E2', '#357ABD']}
@@ -421,29 +427,39 @@ const HomeScreen = ({ navigation }) => {
         >
           <View style={styles.headerContent}>
             <Animated.View
-  style={[
-    styles.greetingSection,
-    {
-      marginTop: 4,
-      opacity: fadeAnim,
-      transform: [{ translateY: slideAnim }],
-    },
-  ]}
->
-  <Text style={styles.greeting}>
-    {t('home.hello', { name: userName || t('profile.mindcareUser') })}
-  </Text>
-  <Text style={styles.subgreeting}>
-    {t('home.howFeeling')}
-  </Text>
-</Animated.View>
-
-            {/* Profile Button */}
-            <TouchableOpacity
-              style={styles.profileButton}
-              onPress={() => handleNavigate('Profile')}
-              activeOpacity={0.7}
+              style={[
+                styles.greetingSection,
+                {
+                  marginTop: 4,
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                },
+              ]}
             >
+              <Text style={styles.greeting}>
+                {t('home.hello', { name: userName || t('profile.mindcareUser') })}
+              </Text>
+              <Text style={styles.subgreeting}>
+                {t('home.howFeeling')}
+              </Text>
+            </Animated.View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              {/* Streak Button */}
+              <TouchableOpacity
+                style={[styles.profileButton, { backgroundColor: 'rgba(255, 107, 107, 0.2)', borderColor: 'rgba(255, 107, 107, 0.3)' }]}
+                onPress={() => handleNavigate('WellnessStreak')}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 24 }}>🔥</Text>
+              </TouchableOpacity>
+              
+              {/* Profile Button */}
+              <TouchableOpacity
+                style={styles.profileButton}
+                onPress={() => handleNavigate('Profile')}
+                activeOpacity={0.7}
+              >
               <View style={styles.profileButtonInner}>
                 {profilePhotoURL && !profilePhotoError ? (
                   <Image
@@ -459,6 +475,10 @@ const HomeScreen = ({ navigation }) => {
                 )}
               </View>
             </TouchableOpacity>
+            </View>
+          </View>
+          <View style={{ alignItems: 'center', marginTop: 10, marginBottom: -20 }}>
+            <NovaCompanion state={novaState} style={{ transform: [{ scale: 0.95 }] }} />
           </View>
         </LinearGradient>
 
@@ -466,11 +486,14 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.quickActions')}</Text>
           
-          <View style={styles.actionsGrid}>
+          <View style={[styles.actionsGrid, tourActive && { zIndex: 100, elevation: 100 }]}>
             {/* Start Chat Button */}
             <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => handleNavigate('Chat')}
+              style={[
+                styles.actionCard,
+                tourActive && tourStep === 1 && { zIndex: 101, elevation: 101, transform: [{ scale: 1.05 }], shadowColor: '#4FC3F7', shadowOpacity: 0.8, shadowRadius: 15 }
+              ]}
+              onPress={() => { setNovaState('listening'); setTimeout(() => handleNavigate('Chat'), 500); }}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -488,7 +511,7 @@ const HomeScreen = ({ navigation }) => {
             {/* Voice Companion Button */}
             <TouchableOpacity
               style={styles.actionCard}
-              onPress={() => handleNavigate('VoiceCompanion')}
+              onPress={() => { setNovaState('speaking'); setTimeout(() => handleNavigate('VoiceCompanion'), 500); }}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -505,8 +528,11 @@ const HomeScreen = ({ navigation }) => {
 
             {/* Track Mood Button */}
             <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => handleNavigate('Mood')}
+              style={[
+                styles.actionCard,
+                tourActive && tourStep === 2 && { zIndex: 101, elevation: 101, transform: [{ scale: 1.05 }], shadowColor: '#4FC3F7', shadowOpacity: 0.8, shadowRadius: 15 }
+              ]}
+              onPress={() => { setNovaState('mood'); setTimeout(() => handleNavigate('Mood'), 500); }}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -524,7 +550,7 @@ const HomeScreen = ({ navigation }) => {
             {/* Wellness/Exercise Button */}
             <TouchableOpacity
               style={styles.actionCard}
-              onPress={() => handleNavigate('Exercise')}
+              onPress={() => { setNovaState('meditation'); setTimeout(() => handleNavigate('GuidedBreathing'), 500); }}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -541,8 +567,11 @@ const HomeScreen = ({ navigation }) => {
 
             {/* Generate Report Button */}
             <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => handleNavigate('Report')}
+              style={[
+                styles.actionCard,
+                tourActive && tourStep === 3 && { zIndex: 101, elevation: 101, transform: [{ scale: 1.05 }], shadowColor: '#4FC3F7', shadowOpacity: 0.8, shadowRadius: 15 }
+              ]}
+              onPress={() => { setNovaState('report'); setTimeout(() => handleNavigate('Report'), 500); }}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -554,6 +583,27 @@ const HomeScreen = ({ navigation }) => {
                 <MaterialCommunityIcons name="file-document-outline" size={32} color="#FFF" />
                 <Text style={styles.actionCardText}>{t('report.generateCta', { defaultValue: 'Generate' })}</Text>
                 <Text style={styles.actionCardSubtext}>{t('report.subtitle', { defaultValue: 'Daily Report' })}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Safety Circle Button */}
+            <TouchableOpacity
+              style={[
+                styles.actionCard,
+                tourActive && tourStep === 4 && { zIndex: 101, elevation: 101, transform: [{ scale: 1.05 }], shadowColor: '#4FC3F7', shadowOpacity: 0.8, shadowRadius: 15 }
+              ]}
+              onPress={() => { setNovaState('concern'); setTimeout(() => handleNavigate('TrustedContact'), 500); }}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['#FF8A65', '#D84315']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.actionCardGradient}
+              >
+                <MaterialCommunityIcons name="shield-account" size={32} color="#FFF" />
+                <Text style={styles.actionCardText}>Safety Circle</Text>
+                <Text style={styles.actionCardSubtext}>Trusted Contacts</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -829,6 +879,7 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
       </Animated.ScrollView>
+      <NovaTourModal onStateChange={setNovaState} onStepChange={setTourStep} onVisibleChange={setTourActive} />
     </SafeAreaView>
   );
 };
@@ -866,18 +917,18 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   greeting: {
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 8,
-    letterSpacing: -0.6,
-    lineHeight: 32,
+    marginBottom: 6,
+    letterSpacing: -0.8,
+    lineHeight: 38,
   },
   subgreeting: {
-    fontSize: 15,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '600',
-    lineHeight: 20,
+    fontSize: 16,
+    color: '#A1A1AA',
+    fontWeight: '500',
+    lineHeight: 22,
   },
   profileButton: {
     width: 56,
@@ -977,8 +1028,10 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     width: '47%',
-    borderRadius: 16,
+    borderRadius: 22,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   actionCardGradient: {
     paddingVertical: 24,
@@ -986,7 +1039,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    borderRadius: 16,
+    borderRadius: 22,
   },
   actionCardText: {
     fontSize: 16,

@@ -35,6 +35,14 @@
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
+      <intent-filter android:label="filter_view_mindcare">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="mindcare" />
+        <data android:scheme="com.mentalcare.app" />
+        <data android:scheme="com.googleusercontent.apps.816701960405-a3chgbon1orjqr9q3kiasplgv7dro0c7" />
+      </intent-filter>
     </activity>
   </application>
 </manifest>

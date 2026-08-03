@@ -729,6 +729,21 @@ const ProfileScreen = ({ navigation }) => {
                 thumbColor="#FFFFFF"
               />
             </View>
+
+            <View style={styles.settingDivider} />
+            
+            <TouchableOpacity 
+              style={styles.settingRow} 
+              onPress={() => navigation.navigate('AccountDataControls')}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="shield-lock-outline" size={22} color="#10B981" style={styles.settingIcon} />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Account & Data Controls</Text>
+                <Text style={styles.settingSubtitle}>Privacy, downloads, & deletion</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={isDark ? '#475569' : '#CBD5E1'} />
+            </TouchableOpacity>
           </View>
         </Animated.View>
 

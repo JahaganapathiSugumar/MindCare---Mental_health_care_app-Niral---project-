@@ -90,24 +90,6 @@ const TrustedContactScreen = ({ navigation }) => {
     }
   };
 
-  const handleSkip = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await AsyncStorage.setItem('trustedContactSkipped', 'true');
-      await AsyncStorage.setItem('trustedContactAdded', 'true'); // Treat as resolved for routing
-      
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (user) {
-        const db = getFirestore();
-        await setDoc(doc(db, 'users', user.uid), { trustedContactSetup: true }, { merge: true });
-      }
-      navigation.replace('Home');
-    } catch (error) {
-      console.error('Error skipping trusted contact setup:', error);
-    }
-  };
-
   const handleOpenContacts = async () => {
     try {
       setLoadingContacts(true);
@@ -245,15 +227,6 @@ const TrustedContactScreen = ({ navigation }) => {
             ) : (
               <Text style={styles.saveButtonText}>Save Contact</Text>
             )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleSkip}
-            disabled={loading}
-            activeOpacity={0.8}
-            style={styles.skipButton}
-          >
-            <Text style={styles.skipButtonText}>Skip for now</Text>
           </TouchableOpacity>
         </Animated.View>
       </KeyboardAvoidingView>

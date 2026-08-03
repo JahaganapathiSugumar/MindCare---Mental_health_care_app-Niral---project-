@@ -23,7 +23,9 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import { radius, spacing } from '../utils/uiTokens';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import Constants from 'expo-constants';
 import { signInWithGoogle, getCurrentUser } from '../services/authService';
 
 const SignInScreen = ({ navigation }) => {
@@ -40,11 +42,14 @@ const SignInScreen = ({ navigation }) => {
   const formTranslateY = useRef(new Animated.Value(14)).current;
   const footerOpacity = useRef(new Animated.Value(0)).current;
 
-  // Initialize Google OAuth
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
+  const isExpoGo = Constants.executionEnvironment === 'storeClient' || Constants.appOwnership === 'expo';
+
+  // Initialize Google OAuth using useIdTokenAuthRequest with native Client IDs
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '',
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: isExpoGo ? undefined : process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: isExpoGo ? undefined : process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '',
   });
 
   WebBrowser.maybeCompleteAuthSession();

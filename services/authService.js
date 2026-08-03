@@ -1,5 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import Constants from 'expo-constants';
 import { 
   signInWithCredential, 
   GoogleAuthProvider,
@@ -26,8 +27,9 @@ export const initializeGoogleAuth = () => {
   try {
     // Get environment variables for Google OAuth
     const expoClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
-    const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
-    const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+    const isExpoGo = Constants.executionEnvironment === 'storeClient' || Constants.appOwnership === 'expo';
+    const iosClientId = isExpoGo ? undefined : process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+    const androidClientId = isExpoGo ? undefined : process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
 
     if (!expoClientId) {
       console.warn('[GoogleAuth] EXPO_PUBLIC_GOOGLE_CLIENT_ID not configured. Google Sign-In will not work.');
@@ -93,8 +95,10 @@ export const signInWithGoogle = async (promptAsync) => {
       };
     }
 
+    console.log('[GoogleSignIn] Google Auth result:', JSON.stringify(result));
+
     // Get OAuth token from Google
-    const { id_token } = result.params;
+    const id_token = result.params?.id_token || result.authentication?.idToken || result.params?.idToken;
 
     if (!id_token) {
       throw new Error('No ID token received from Google');

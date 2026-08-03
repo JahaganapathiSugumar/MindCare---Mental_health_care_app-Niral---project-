@@ -19,7 +19,10 @@ import PersonalizationScreen from '../screens/PersonalizationScreen';
 import TrustedContactScreen from '../screens/TrustedContactScreen';
 import LanguageSelectionScreen from '../screens/LanguageSelectionScreen';
 import ExerciseScreen from '../screens/ExerciseScreen';
+import GuidedBreathingScreen from '../screens/GuidedBreathingScreen';
+import WellnessStreakScreen from '../screens/WellnessStreakScreen';
 import VoiceCompanionScreen from '../screens/VoiceCompanionScreen';
+import AccountDataControlsScreen from '../screens/AccountDataControlsScreen';
 import { initializeProactiveNotifications } from '../services/notifications';
 import { getHasSeenOnboarding, setHasSeenOnboarding as setHasSeenOnboardingStorage, clearHasSeenOnboarding as clearHasSeenOnboardingStorage } from '../utils/storage';
 import { useLanguage } from '../context/LanguageContext';
@@ -320,8 +323,11 @@ const RootNavigator = () => {
             <Stack.Screen name="Chat" component={ChatScreen} />
             <Stack.Screen name="VoiceCompanion" component={VoiceCompanionScreen} options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="Exercise" component={ExerciseScreen} />
+            <Stack.Screen name="GuidedBreathing" component={GuidedBreathingScreen} />
+            <Stack.Screen name="WellnessStreak" component={WellnessStreakScreen} />
             <Stack.Screen name="Mood" component={MoodScreen} />
             <Stack.Screen name="Report" component={ReportScreen} />
+            <Stack.Screen name="AccountDataControls" component={AccountDataControlsScreen} />
           </>
         ) : (
           <>
