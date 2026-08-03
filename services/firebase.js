@@ -573,3 +573,67 @@ export const getChatHistoryWindow = async (userId, days = 14, maxItems = 80) => 
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, maxItems);
 };
+
+export const getYearlyActivityMap = async (userId) => {
+  if (!userId) return {};
+
+  const { db } = getFirebaseInstance();
+  if (!db) throw new Error('Firestore is not initialized.');
+
+  const moodsRef = collection(db, 'moods');
+  const chatsRef = collection(db, 'chats');
+  const limitCount = 500;
+
+  const activityMap = {};
+
+  const processSnapshot = (snap) => {
+    snap.docs.forEach((docSnap) => {
+      const data = docSnap.data();
+      const createdAt =
+        toDateFromTimestamp(data.timestamp) ||
+        toDateFromTimestamp(data.createdAt) ||
+        toDateFromTimestamp(data.updatedAt);
+      
+      if (createdAt) {
+        const dateKey = toDateKey(createdAt);
+        activityMap[dateKey] = (activityMap[dateKey] || 0) + 1;
+      }
+    });
+  };
+
+  try {
+    const moodsQuery = query(
+      moodsRef,
+      where('userId', '==', userId),
+      orderBy('timestamp', 'desc'),
+      limit(limitCount)
+    );
+    const snapMoods = await getDocs(moodsQuery);
+    processSnapshot(snapMoods);
+  } catch (error) {
+    try {
+      const fbMoods = query(moodsRef, where('userId', '==', userId), limit(limitCount));
+      const snapMoods = await getDocs(fbMoods);
+      processSnapshot(snapMoods);
+    } catch(e) {}
+  }
+
+  try {
+    const chatsQuery = query(
+      chatsRef,
+      where('userId', '==', userId),
+      orderBy('timestamp', 'desc'),
+      limit(limitCount)
+    );
+    const snapChats = await getDocs(chatsQuery);
+    processSnapshot(snapChats);
+  } catch (error) {
+    try {
+      const fbChats = query(chatsRef, where('userId', '==', userId), limit(limitCount));
+      const snapChats = await getDocs(fbChats);
+      processSnapshot(snapChats);
+    } catch (e) {}
+  }
+
+  return activityMap;
+};

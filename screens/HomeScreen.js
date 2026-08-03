@@ -155,6 +155,7 @@ const HomeScreen = ({ navigation }) => {
   const [novaState, setNovaState] = useState('idle');
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(null);
+  const [isNovaVisible, setIsNovaVisible] = useState(true);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -477,9 +478,6 @@ const HomeScreen = ({ navigation }) => {
             </TouchableOpacity>
             </View>
           </View>
-          <View style={{ alignItems: 'center', marginTop: 10, marginBottom: -20 }}>
-            <NovaCompanion state={novaState} style={{ transform: [{ scale: 0.95 }] }} />
-          </View>
         </LinearGradient>
 
         {/* Quick Actions Section */}
@@ -604,6 +602,23 @@ const HomeScreen = ({ navigation }) => {
                 <MaterialCommunityIcons name="shield-account" size={32} color="#FFF" />
                 <Text style={styles.actionCardText}>Safety Circle</Text>
                 <Text style={styles.actionCardSubtext}>Trusted Contacts</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            {/* Premium Dashboard Button */}
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => { setNovaState('celebration'); setTimeout(() => handleNavigate('WellnessDashboard'), 500); }}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['#0ea5e9', '#0284c7']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.actionCardGradient}
+              >
+                <MaterialCommunityIcons name="star-shooting" size={32} color="#FFF" />
+                <Text style={styles.actionCardText}>Dashboard</Text>
+                <Text style={styles.actionCardSubtext}>Premium UI</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -879,10 +894,23 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
       </Animated.ScrollView>
-      <NovaTourModal onStateChange={setNovaState} onStepChange={setTourStep} onVisibleChange={setTourActive} />
-    </SafeAreaView>
-  );
-};
+
+        {/* Floating Nova Companion */}
+        {isNovaVisible && (
+          <View style={styles.floatingNovaContainer}>
+            <TouchableOpacity style={styles.closeNovaButton} onPress={() => setIsNovaVisible(false)}>
+              <MaterialCommunityIcons name="close" size={16} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleNavigate('Chat')} activeOpacity={0.9}>
+              <NovaCompanion state={novaState} style={{ transform: [{ scale: 0.6 }] }} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <NovaTourModal onStateChange={setNovaState} onStepChange={setTourStep} onVisibleChange={setTourActive} />
+      </SafeAreaView>
+    );
+  };
 
 const styles = StyleSheet.create({
   container: {
@@ -1455,6 +1483,28 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     fontWeight: '500',
   },
+  floatingNovaContainer: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    zIndex: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 120,
+    height: 120,
+  },
+  closeNovaButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1000,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  }
 });
 
 export default HomeScreen;

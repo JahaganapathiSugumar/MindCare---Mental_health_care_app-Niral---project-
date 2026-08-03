@@ -28,6 +28,16 @@ import { getHasSeenOnboarding, setHasSeenOnboarding as setHasSeenOnboardingStora
 import { useLanguage } from '../context/LanguageContext';
 import { useTranslation } from 'react-i18next';
 
+import WellnessDashboardScreen from '../screens/WellnessDashboardScreen';
+import AchievementGalleryScreen from '../screens/AchievementGalleryScreen';
+import HeatmapScreen from '../screens/HeatmapScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
+import EmergencyFAB from '../components/ui/Premium/EmergencyFAB';
+
+import TherapistHubScreen from '../screens/TherapistHubScreen';
+import NearbyTherapistsScreen from '../screens/NearbyTherapistsScreen';
+import TherapistProfileScreen from '../screens/TherapistProfileScreen';
+
 const Stack = createStackNavigator();
 
 const RootNavigator = () => {
@@ -328,6 +338,14 @@ const RootNavigator = () => {
             <Stack.Screen name="Mood" component={MoodScreen} />
             <Stack.Screen name="Report" component={ReportScreen} />
             <Stack.Screen name="AccountDataControls" component={AccountDataControlsScreen} />
+            {/* Premium UI Screens */}
+            <Stack.Screen name="WellnessDashboard" component={WellnessDashboardScreen} />
+            <Stack.Screen name="AchievementGallery" component={AchievementGalleryScreen} />
+            <Stack.Screen name="Heatmap" component={HeatmapScreen} />
+            <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+            <Stack.Screen name="TherapistHub" component={TherapistHubScreen} />
+            <Stack.Screen name="NearbyTherapists" component={NearbyTherapistsScreen} options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="TherapistProfile" component={TherapistProfileScreen} />
           </>
         ) : (
           <>
@@ -337,6 +355,7 @@ const RootNavigator = () => {
           </>
         )}
       </Stack.Navigator>
+      {user && <EmergencyFAB />}
     </NavigationContainer>
   );
 };

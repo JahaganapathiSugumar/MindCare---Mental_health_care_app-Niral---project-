@@ -367,6 +367,9 @@ export const fetchProfileData = async () => {
     notificationsEnabled: userDocSnap.exists()
       ? userDocSnap.data().notificationsEnabled !== false
       : true,
+    isPublic: userDocSnap.exists()
+      ? userDocSnap.data().isPublic === true
+      : false,
   };
 };
 
@@ -654,4 +657,28 @@ export const updateNotificationPreference = async (enabled) => {
   );
 
   return !!enabled;
+};
+
+export const updateProfilePrivacy = async (isPublic) => {
+  const auth = await ensureAuthInitialized();
+  const { db } = getFirebaseInstance();
+
+  if (!auth?.currentUser) {
+    throw new Error('No authenticated user found.');
+  }
+
+  const userId = auth.currentUser.uid;
+  const userDocRef = doc(db, 'users', userId);
+
+  await setDoc(
+    userDocRef,
+    {
+      uid: userId,
+      isPublic: !!isPublic,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true }
+  );
+
+  return !!isPublic;
 };

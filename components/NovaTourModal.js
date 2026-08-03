@@ -60,8 +60,8 @@ export default function NovaTourModal({ onStateChange, onStepChange, onVisibleCh
   const checkTourStatus = async () => {
     try {
       const hasSeen = await AsyncStorage.getItem('hasSeenNovaTour');
-      // TEMPORARILY ALWAYS SHOW TOUR FOR TESTING
-      // if (hasSeen !== 'true') {
+      
+      if (hasSeen !== 'true') {
         setIsVisible(true);
         onVisibleChange && onVisibleChange(true);
         onStepChange && onStepChange(0);
@@ -72,7 +72,7 @@ export default function NovaTourModal({ onStateChange, onStepChange, onVisibleCh
         }).start();
         onStateChange && onStateChange(TOUR_STEPS[0].novaState);
         speakLines(TOUR_STEPS[0].lines);
-      // }
+      }
     } catch (error) {
       console.error('Error checking Nova tour status', error);
     }

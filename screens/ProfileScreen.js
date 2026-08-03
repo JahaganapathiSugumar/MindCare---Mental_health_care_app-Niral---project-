@@ -62,6 +62,8 @@ const ProfileScreen = ({ navigation }) => {
   const [updatingPhoto, setUpdatingPhoto] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [updatingNotifications, setUpdatingNotifications] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
+  const [updatingPrivacy, setUpdatingPrivacy] = useState(false);
   const [personalization, setPersonalization] = useState(null);
   const [editPersonalizationVisible, setEditPersonalizationVisible] = useState(false);
   const [editPersonalization, setEditPersonalization] = useState({ role: null, concern: null, supportStyle: null });
@@ -91,6 +93,7 @@ const ProfileScreen = ({ navigation }) => {
 
       setProfile(profileData);
       setNotificationsEnabled(profileData.notificationsEnabled !== false);
+      setIsPublic(profileData.isPublic === true);
       setMoods(moodData);
       setPersonalization(personalizationData);
       setTrustedContact(trustedContactData);
@@ -255,6 +258,26 @@ const ProfileScreen = ({ navigation }) => {
       Alert.alert(t('profile.notificationUpdateFailed'), error.message || t('profile.updateNotificationsFailed', { defaultValue: 'Could not update notification settings.' }));
     } finally {
       setUpdatingNotifications(false);
+    }
+  };
+
+  const handleTogglePrivacy = async (enabled) => {
+    if (!profile?.userId || updatingPrivacy) return;
+
+    const previousValue = isPublic;
+    setIsPublic(enabled);
+    setUpdatingPrivacy(true);
+
+    try {
+      // Need to import updateProfilePrivacy from profileService
+      const { updateProfilePrivacy } = require('../services/profileService');
+      await updateProfilePrivacy(enabled);
+    } catch (error) {
+      console.error('[Profile] Privacy update error:', error.message || error);
+      setIsPublic(previousValue);
+      Alert.alert('Update Failed', 'Could not update privacy settings.');
+    } finally {
+      setUpdatingPrivacy(false);
     }
   };
 
@@ -730,6 +753,23 @@ const ProfileScreen = ({ navigation }) => {
               />
             </View>
 
+            <View style={styles.settingDivider} />
+
+            <View style={styles.settingRow}>
+              <MaterialCommunityIcons name="earth" size={22} color="#10B981" style={styles.settingIcon} />
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Public Leaderboard</Text>
+                <Text style={styles.settingSubtitle}>Opt-in to global ranking</Text>
+              </View>
+              <Switch
+                value={isPublic}
+                onValueChange={handleTogglePrivacy}
+                disabled={updatingPrivacy}
+                trackColor={{ false: '#E5E7EB', true: '#10B981' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+            
             <View style={styles.settingDivider} />
             
             <TouchableOpacity 
