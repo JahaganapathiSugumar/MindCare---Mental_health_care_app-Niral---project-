@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import {
+import { DeviceEventEmitter,
   ActivityIndicator,
   Alert,
   Modal,
@@ -45,6 +45,7 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
+import { FloatingBottomNav } from '../components/ui/Premium/LearningHubCards';
 
 const ProfileScreen = ({ navigation }) => {
   const { t } = useTranslation();
@@ -54,6 +55,15 @@ const ProfileScreen = ({ navigation }) => {
   const [moods, setMoods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const handleScroll = (event) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    if (Math.abs(currentY - lastScrollY) > 10) {
+      DeviceEventEmitter.emit('onScrollDirection', { scrollingDown: currentY > lastScrollY && currentY > 50 });
+      setLastScrollY(currentY);
+    }
+  };
+
   const [loggingOut, setLoggingOut] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [editName, setEditName] = useState('');
@@ -532,7 +542,7 @@ const ProfileScreen = ({ navigation }) => {
         </>
       )}
 
-      <Animated.ScrollView
+      <Animated.ScrollView onScroll={handleScroll} scrollEventThrottle={16}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -603,42 +613,6 @@ const ProfileScreen = ({ navigation }) => {
               <Text style={styles.emptyText}>Tap the pencil to personalize your AI.</Text>
             )}
           </View>
-        </Animated.View>
-
-        {/* ===== EMOTIONAL JOURNEY SECTION ===== */}
-        <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Emotional Journey</Text>
-          
-          {moods.length === 0 ? (
-            <View style={styles.emptyJourneyCard}>
-              <MaterialCommunityIcons name="chart-timeline-variant" size={32} color="#A98EFF" style={{ opacity: 0.5, marginBottom: 8 }} />
-              <Text style={styles.emptyJourneyText}>Start tracking your mood to visualize your emotional journey.</Text>
-            </View>
-          ) : (
-            <View style={styles.timelineContainer}>
-              {moods.slice(0, 5).map((item, index) => (
-                <View key={item.id} style={styles.timelineRow}>
-                  <View style={styles.timelineNodeContainer}>
-                    <View style={styles.timelineNode} />
-                    {index < Math.min(4, moods.length - 1) && <View style={styles.timelineLine} />}
-                  </View>
-                  <View style={styles.timelineContent}>
-                    <Text style={styles.timelineEmoji}>
-                      {item.mood === 'happy' ? '😊' : item.mood === 'sad' ? '😔' : item.mood === 'anxious' ? '😟' : '🤔'}
-                    </Text>
-                    <View>
-                      <Text style={styles.timelineMood}>
-                        {item.mood?.charAt(0).toUpperCase() + item.mood?.slice(1) || 'Neutral'}
-                      </Text>
-                      <Text style={styles.timelineDate}>
-                        {new Date(item.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
         </Animated.View>
 
         {/* ===== SAFETY CIRCLE SECTION ===== */}
@@ -1370,7 +1344,8 @@ const ProfileScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      <FloatingBottomNav activeTab="Profile" onTabPress={(tab) => navigation.navigate(tab)} />
+      </SafeAreaView>
   );
 };
 

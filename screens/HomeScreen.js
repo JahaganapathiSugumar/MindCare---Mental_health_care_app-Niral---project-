@@ -1,3 +1,4 @@
+import { DeviceEventEmitter } from 'react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -25,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
 import NovaCompanion from '../components/NovaCompanion';
 import NovaTourModal from '../components/NovaTourModal';
+import { FloatingBottomNav } from '../components/ui/Premium/LearningHubCards';
 
 const MOOD_META = {
   happy: { emoji: '😊', key: 'moods.happy', accent: '#3FAF62', soft: '#EAF9EF' },
@@ -151,11 +153,20 @@ const HomeScreen = ({ navigation }) => {
   const [dailyReflections, setDailyReflections] = useState([]);
   const [reflectionsLoading, setReflectionsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const handleScroll = (event) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    if (Math.abs(currentY - lastScrollY) > 10) {
+      DeviceEventEmitter.emit('onScrollDirection', { scrollingDown: currentY > lastScrollY && currentY > 50 });
+      setLastScrollY(currentY);
+    }
+  };
+
   const [recentChats, setRecentChats] = useState([]);
-  const [novaState, setNovaState] = useState('idle');
+  // novaState handled globally
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(null);
-  const [isNovaVisible, setIsNovaVisible] = useState(true);
+  // isNovaVisible handled globally
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -406,7 +417,7 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <Animated.ScrollView
+      <Animated.ScrollView onScroll={handleScroll} scrollEventThrottle={16}
         style={{ opacity: themeFadeAnim }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -491,7 +502,7 @@ const HomeScreen = ({ navigation }) => {
                 styles.actionCard,
                 tourActive && tourStep === 1 && { zIndex: 101, elevation: 101, transform: [{ scale: 1.05 }], shadowColor: '#4FC3F7', shadowOpacity: 0.8, shadowRadius: 15 }
               ]}
-              onPress={() => { setNovaState('listening'); setTimeout(() => handleNavigate('Chat'), 500); }}
+              onPress={() => { DeviceEventEmitter.emit('setNovaState', 'listening'); setTimeout(() => handleNavigate('Chat'), 500); }}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -509,7 +520,7 @@ const HomeScreen = ({ navigation }) => {
             {/* Voice Companion Button */}
             <TouchableOpacity
               style={styles.actionCard}
-              onPress={() => { setNovaState('speaking'); setTimeout(() => handleNavigate('VoiceCompanion'), 500); }}
+              onPress={() => { DeviceEventEmitter.emit('setNovaState', 'speaking'); setTimeout(() => handleNavigate('VoiceCompanion'), 500); }}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -530,7 +541,7 @@ const HomeScreen = ({ navigation }) => {
                 styles.actionCard,
                 tourActive && tourStep === 2 && { zIndex: 101, elevation: 101, transform: [{ scale: 1.05 }], shadowColor: '#4FC3F7', shadowOpacity: 0.8, shadowRadius: 15 }
               ]}
-              onPress={() => { setNovaState('mood'); setTimeout(() => handleNavigate('Mood'), 500); }}
+              onPress={() => { DeviceEventEmitter.emit('setNovaState', 'mood'); setTimeout(() => handleNavigate('Mood'), 500); }}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -548,7 +559,7 @@ const HomeScreen = ({ navigation }) => {
             {/* Wellness/Exercise Button */}
             <TouchableOpacity
               style={styles.actionCard}
-              onPress={() => { setNovaState('meditation'); setTimeout(() => handleNavigate('GuidedBreathing'), 500); }}
+              onPress={() => { DeviceEventEmitter.emit('setNovaState', 'meditation'); setTimeout(() => handleNavigate('GuidedBreathing'), 500); }}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -569,7 +580,7 @@ const HomeScreen = ({ navigation }) => {
                 styles.actionCard,
                 tourActive && tourStep === 3 && { zIndex: 101, elevation: 101, transform: [{ scale: 1.05 }], shadowColor: '#4FC3F7', shadowOpacity: 0.8, shadowRadius: 15 }
               ]}
-              onPress={() => { setNovaState('report'); setTimeout(() => handleNavigate('Report'), 500); }}
+              onPress={() => { DeviceEventEmitter.emit('setNovaState', 'report'); setTimeout(() => handleNavigate('Report'), 500); }}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -584,30 +595,13 @@ const HomeScreen = ({ navigation }) => {
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* Safety Circle Button */}
+            {/* Journal Button */}
             <TouchableOpacity
               style={[
                 styles.actionCard,
                 tourActive && tourStep === 4 && { zIndex: 101, elevation: 101, transform: [{ scale: 1.05 }], shadowColor: '#4FC3F7', shadowOpacity: 0.8, shadowRadius: 15 }
               ]}
-              onPress={() => { setNovaState('concern'); setTimeout(() => handleNavigate('TrustedContact'), 500); }}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={['#FF8A65', '#D84315']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.actionCardGradient}
-              >
-                <MaterialCommunityIcons name="shield-account" size={32} color="#FFF" />
-                <Text style={styles.actionCardText}>Safety Circle</Text>
-                <Text style={styles.actionCardSubtext}>Trusted Contacts</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            {/* Premium Dashboard Button */}
-            <TouchableOpacity
-              style={styles.actionCard}
-              onPress={() => { setNovaState('celebration'); setTimeout(() => handleNavigate('WellnessDashboard'), 500); }}
+              onPress={() => { DeviceEventEmitter.emit('setNovaState', 'report'); setTimeout(() => handleNavigate('Report'), 500); }}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -616,146 +610,12 @@ const HomeScreen = ({ navigation }) => {
                 end={{ x: 1, y: 1 }}
                 style={styles.actionCardGradient}
               >
-                <MaterialCommunityIcons name="star-shooting" size={32} color="#FFF" />
-                <Text style={styles.actionCardText}>Dashboard</Text>
-                <Text style={styles.actionCardSubtext}>Premium UI</Text>
+                <MaterialCommunityIcons name="book-open-outline" size={32} color="#FFF" />
+                <Text style={styles.actionCardText}>Journal</Text>
+                <Text style={styles.actionCardSubtext}>Reflections</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Mood Summary Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.moodOverview')}</Text>
-            <TouchableOpacity onPress={() => handleNavigate('Mood')}>
-              <Text style={[styles.seeAllText, { color: theme.primary }]}>{t('home.aiInsights')}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {moodLoading ? (
-            <View style={[styles.moodLoadingCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
-              <ActivityIndicator size="small" color={theme.primary} />
-              <Text style={[styles.moodLoadingText, { color: theme.mutedText }]}>{t('home.loadingMoodInsights')}</Text>
-            </View>
-          ) : latestMood ? (
-            <LinearGradient
-              colors={isDark ? ['#222A30', '#20252C', '#1D2329'] : ['#F4FAFF', '#EAF4FF', '#E9F8F1']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.moodCard}
-            >
-              <View style={styles.latestMoodRow}>
-                <Animated.Text style={[styles.latestMoodEmoji, { transform: [{ scale: moodEmojiAnim }] }]}>
-                  {getMoodMeta(latestMood.mood).emoji}
-                </Animated.Text>
-                <View style={styles.latestMoodTextWrap}>
-                  <Text style={[styles.latestMoodTitle, { color: getMoodMeta(latestMood.mood).accent }]}>
-                    {t('home.youFelt', { mood: t(getMoodMeta(latestMood.mood).key) })}
-                  </Text>
-                  <Text style={[styles.latestMoodTime, { color: theme.mutedText }]}>{formatMoodTimestamp(latestMood.createdAt, t)}</Text>
-                  <Text style={[styles.latestMoodRelative, { color: theme.mutedText }]}>{getRelativeTime(latestMood.createdAt, t)}</Text>
-                </View>
-              </View>
-
-              <View style={styles.moodPreviewWrap}>
-                {recentMoods.map((item) => {
-                  const meta = getMoodMeta(item.mood);
-                  return (
-                    <View key={item.id} style={[styles.moodPreviewItem, { backgroundColor: meta.soft }]}>
-                      <Text style={styles.moodPreviewEmoji}>{meta.emoji}</Text>
-                      <Text style={[styles.moodPreviewLabel, { color: meta.accent }]} numberOfLines={1}>
-                        {t(meta.key)}
-                      </Text>
-                      
-                      <Text style={[styles.moodPreviewTime, { color: theme.mutedText }]} numberOfLines={1}>
-                        {getRelativeTime(item.createdAt, t)}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-
-              <View style={[styles.moodTrendCard, { backgroundColor: isDark ? '#252A30' : 'rgba(255,255,255,0.72)' }]}>
-                <View style={styles.moodTrendBarsWrap}>
-                  {moodTrendData.map((point) => (
-                    <View key={point.id} style={styles.moodTrendPoint}>
-                      <View style={[styles.moodTrendBar, { height: point.height, backgroundColor: point.meta.accent }]} />
-                      <Text style={[styles.moodTrendLabel, { color: theme.mutedText }]}>{point.label}</Text>
-                    </View>
-                  ))}
-                </View>
-                <Text style={[styles.moodInsightText, { color: theme.mutedText }]}>{getMoodInsight(recentMoods, t)}</Text>
-              </View>
-            </LinearGradient>
-          ) : (
-            <View style={[styles.emptyMoodContainer, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}> 
-              <Ionicons name="happy-outline" size={30} color="#6E8EA8" />
-              <Text style={[styles.emptyMoodText, { color: theme.text }]}>{t('home.noMoodRecorded')}</Text>
-              <Text style={[styles.emptyMoodSubtext, { color: theme.mutedText }]}>{t('home.startChatForMood')}</Text>
-              <TouchableOpacity style={styles.moodTrackButton} onPress={() => handleNavigate('Mood')} activeOpacity={0.85}>
-                <Text style={styles.moodTrackButtonText}>{t('home.viewAIMoodInsights')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {/* AI Insights Dashboard Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.aiInsights')}</Text>
-            <TouchableOpacity onPress={() => loadUserData(true)}>
-              <Text style={[styles.seeAllText, { color: theme.primary }]}>{t('home.refresh')}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {insightsLoading ? (
-            <View style={[styles.recentChatsLoadingCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
-              <ActivityIndicator size="small" color={theme.primary} />
-              <Text style={[styles.recentChatsLoadingText, { color: theme.mutedText }]}>{t('home.analyzingTrends')}</Text>
-            </View>
-          ) : (
-            <View style={styles.insightCardStack}>
-              {insights.map((insight, index) => (
-                <View
-                  key={`${insight}-${index}`}
-                  style={[styles.insightCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-                >
-                  <Text style={styles.insightIcon}>💡</Text>
-                  <Text style={[styles.insightText, { color: theme.text }]} numberOfLines={2}>
-                    {insight}
-                  </Text>
-                </View>
-              ))}
-
-              <View style={[styles.insightTrendPanel, { backgroundColor: theme.card, borderColor: theme.border }]}> 
-                <Text style={[styles.insightTrendTitle, { color: theme.text }]}>{t('home.trendTitle')}</Text>
-                <View style={styles.insightTrendBarsWrap}>
-                  {insightTrend.map((point) => {
-                    const barHeight = Math.max(16, point.value * 12);
-                    return (
-                      <View key={point.id} style={styles.insightTrendPoint}>
-                        <View
-                          style={[
-                            styles.insightTrendBar,
-                            {
-                              height: barHeight,
-                              backgroundColor: point.value >= 3
-                                ? '#50C878'
-                                : point.value <= 2
-                                  ? '#F29C38'
-                                  : '#4A90E2',
-                            },
-                          ]}
-                        />
-                        <Text style={[styles.insightTrendLabel, { color: theme.mutedText }]}>{point.label}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            </View>
-          )}
         </View>
 
         {/* Daily Reflections Agent Section */}
@@ -804,79 +664,6 @@ const HomeScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* Recent Chats Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.recentChats')}</Text>
-            <TouchableOpacity onPress={() => handleNavigate('Chat')}>
-              <Text style={[styles.seeAllText, { color: theme.primary }]}>{t('home.seeAll')}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {recentChatsLoading ? (
-            <View style={[styles.recentChatsLoadingCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
-              <ActivityIndicator size="small" color={theme.primary} />
-              <Text style={[styles.recentChatsLoadingText, { color: theme.mutedText }]}>{t('home.loadingRecentChats')}</Text>
-            </View>
-          ) : recentChats.length > 0 ? (
-            <View style={[styles.recentChatsCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
-              {recentChats.map((chat, index) => (
-                <Animated.View
-                  key={chat.id}
-                  style={{
-                    opacity: recentChatsAnim.interpolate({
-                      inputRange: [0, 0.5 + index * 0.12, 1],
-                      outputRange: [0, 0, 1],
-                      extrapolate: 'clamp',
-                    }),
-                    transform: [
-                      {
-                        translateY: recentChatsAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [8 + index * 4, 0],
-                        }),
-                      },
-                    ],
-                  }}
-                >
-                  <TouchableOpacity
-                    style={styles.activityItem}
-                    onPress={() => handleOpenRecentChat(chat)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={styles.activityIcon}>
-                      <MaterialCommunityIcons name="robot-happy-outline" size={20} color="#4A90E2" />
-                    </View>
-                    <View style={styles.activityContent}>
-                      <Text style={[styles.activityPreview, { color: theme.text }]} numberOfLines={1}>
-                        {chat.message || t('home.noMessage', { defaultValue: 'No message' })}
-                      </Text>
-                      <Text style={[styles.activityResponse, { color: theme.mutedText }]} numberOfLines={1}>
-                        {chat.response || t('home.noAIResponse', { defaultValue: 'No AI response yet' })}
-                      </Text>
-                      <View style={styles.chatMoodTagWrap}>
-                        <Text style={styles.chatMoodTagText}>
-                          {getMoodMeta(chat.detectedMood).emoji} {t(getMoodMeta(chat.detectedMood).key)}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.activityMeta}>
-                      <Text style={[styles.activityTime, { color: theme.mutedText }]}>{getRelativeTime(chat.createdAt, t)}</Text>
-                      <Ionicons name="chevron-forward" size={18} color="#C7D2DE" />
-                    </View>
-                  </TouchableOpacity>
-                  {index < recentChats.length - 1 && <View style={[styles.separator, { backgroundColor: theme.border }]} />}
-                </Animated.View>
-              ))}
-            </View>
-          ) : (
-            <View style={[styles.emptyActivityContainer, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
-              <Text style={[styles.emptyActivityText, { color: theme.text }]}>{t('home.noRecentConversations')}</Text>
-              <Text style={[styles.emptyActivitySubtext, { color: theme.mutedText }]}>{t('home.startChatToSeeInteractions')}</Text>
-            </View>
-          )}
-        </View>
-
         {/* Wellness Tips Section */}
         <View style={[styles.section, styles.sectionLast]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.dailyTip')}</Text>
@@ -894,20 +681,8 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
       </Animated.ScrollView>
-
-        {/* Floating Nova Companion */}
-        {isNovaVisible && (
-          <View style={styles.floatingNovaContainer}>
-            <TouchableOpacity style={styles.closeNovaButton} onPress={() => setIsNovaVisible(false)}>
-              <MaterialCommunityIcons name="close" size={16} color="#FFF" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleNavigate('Chat')} activeOpacity={0.9}>
-              <NovaCompanion state={novaState} style={{ transform: [{ scale: 0.6 }] }} />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <NovaTourModal onStateChange={setNovaState} onStepChange={setTourStep} onVisibleChange={setTourActive} />
+        <NovaTourModal onStateChange={(state) => DeviceEventEmitter.emit('setNovaState', state)} onStepChange={setTourStep} onVisibleChange={setTourActive} />
+        <FloatingBottomNav activeTab="Home" onTabPress={(tab) => navigation.navigate(tab)} />
       </SafeAreaView>
     );
   };
@@ -1486,7 +1261,7 @@ const styles = StyleSheet.create({
   floatingNovaContainer: {
     position: 'absolute',
     bottom: 20,
-    right: 20,
+    left: 20,
     zIndex: 999,
     alignItems: 'center',
     justifyContent: 'center',

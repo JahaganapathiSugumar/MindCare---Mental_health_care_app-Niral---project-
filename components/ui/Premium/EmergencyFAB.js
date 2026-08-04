@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Alert, Linking } from 'react-native';
+import { View, DeviceEventEmitter, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Alert, Linking } from 'react-native';
 import { BlurView } from 'expo-blur';
 import Modal from 'react-native-modal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -24,6 +24,24 @@ export default function EmergencyFAB() {
   const navigation = useNavigation();
   const pulseScale = useSharedValue(1);
   const pulseOpacity = useSharedValue(0.5);
+  const scrollOpacity = useSharedValue(1);
+  const scrollScale = useSharedValue(1);
+
+  useEffect(() => {
+    const scrollSub = DeviceEventEmitter.addListener('onScrollDirection', ({ scrollingDown }) => {
+      scrollOpacity.value = withTiming(scrollingDown ? 0.4 : 1, { duration: 300 });
+      scrollScale.value = withTiming(scrollingDown ? 0.8 : 1, { duration: 300 });
+    });
+    return () => scrollSub.remove();
+  }, []);
+
+  const scrollAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: scrollOpacity.value,
+      transform: [{ scale: scrollScale.value }]
+    };
+  });
+
 
   useEffect(() => {
     pulseScale.value = withRepeat(
@@ -80,13 +98,13 @@ export default function EmergencyFAB() {
 
   return (
     <>
-      <View style={styles.fabContainer}>
+      <Animated.View style={[styles.fabContainer, scrollAnimatedStyle]}>
         <Animated.View style={[styles.fabGlow, animatedPulseStyle]} />
         <TouchableOpacity style={styles.fab} onPress={toggleModal} activeOpacity={0.8}>
           <MaterialCommunityIcons name="shield-heart" size={26} color="#FFFFFF" />
           <Text style={styles.fabText}>SOS</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       <Modal
         isVisible={isModalVisible}
@@ -189,7 +207,7 @@ export default function EmergencyFAB() {
 const styles = StyleSheet.create({
   fabContainer: {
     position: 'absolute',
-    bottom: 32,
+    bottom: 110,
     right: 24,
     width: 64,
     height: 64,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { DeviceEventEmitter, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Theme } from '../components/ui/Premium/Theme';
@@ -9,6 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { getFirebaseInstance, getAuth_ } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { FloatingBottomNav } from '../components/ui/Premium/LearningHubCards';
 
 export default function WellnessDashboardScreen({ navigation }) {
   const [userData, setUserData] = React.useState({ level: 1, streak: 0, name: 'User' });
@@ -118,16 +119,17 @@ export default function WellnessDashboardScreen({ navigation }) {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(500).duration(600)} style={styles.gridItem}>
-              <TouchableOpacity onPress={() => navigation.navigate('TherapistHub')}>
+              <TouchableOpacity onPress={() => navigation.navigate('Mood')}>
                 <GlassCard style={styles.actionCard}>
-                  <MaterialCommunityIcons name="doctor" size={32} color={Theme.colors.success} />
-                  <Text style={styles.actionCardTitle}>Therapist Hub</Text>
-                  <Text style={styles.actionCardSubtitle}>Human Support</Text>
+                  <MaterialCommunityIcons name="chart-timeline-variant" size={32} color={Theme.colors.success} />
+                  <Text style={styles.actionCardTitle}>Mood Insights</Text>
+                  <Text style={styles.actionCardSubtitle}>AI Analysis</Text>
                 </GlassCard>
               </TouchableOpacity>
             </Animated.View>
           </View>
         </ScrollView>
+        <FloatingBottomNav activeTab="WellnessDashboard" onTabPress={(tab) => navigation.navigate(tab)} />
       </SafeAreaView>
     </View>
   );

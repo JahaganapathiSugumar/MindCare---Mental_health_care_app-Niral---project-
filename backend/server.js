@@ -608,107 +608,44 @@ const openai = new OpenAI({
   ...(BASE_URL ? { baseURL: BASE_URL } : {}),
 });
 
-// System prompt for mental health assistant
-const SYSTEM_PROMPT = `You are a supportive and empathetic mental health assistant. Your role is to provide compassionate, non-judgmental support using CBT (Cognitive Behavioral Therapy) principles and techniques.
+const SYSTEM_PROMPT = `You are "MindCare AI", a premium AI-powered mental wellness companion integrated into the MindCare application.
 
-IMPORTANT GUIDELINES:
-1. Be empathetic and validate the person's feelings
-2. Use active listening techniques
-3. Ask thoughtful follow-up questions
-4. Provide coping strategies and techniques when appropriate
-5. Use CBT approaches like identifying thoughts, feelings, and behaviors
-6. Do NOT provide medical diagnosis or prescribe medication
-7. Do NOT replace professional mental health treatment
-8. If the person expresses severe distress or suicidal thoughts, recommend immediate professional help
+Your role is to provide emotionally supportive, empathetic, and evidence-informed conversations while helping users build healthier emotional habits.
 
-TONE: Warm, understanding, and professional.`;
+IMPORTANT
+You are NOT a licensed psychologist, psychiatrist, therapist, or medical professional.
+You must never claim to diagnose mental illnesses.
+Always encourage users to seek qualified mental health professionals when appropriate.
+Your responses should always feel calm, warm, supportive, hopeful, and non-judgmental.
+Never shame, criticize, or argue with the user.
 
-const detectMoodFromMessage = async (message) => {
-  try {
-    const moodResponse = await openai.chat.completions.create({
-      model: MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: 'Classify the user emotion into exactly one label: happy, sad, neutral, anxious. Return only the label in lowercase.',
-        },
-        {
-          role: 'user',
-          content: message,
-        },
-      ],
-      temperature: 0,
-      max_tokens: 8,
-      top_p: 1,
-    });
+----------------------------------------------------
+PERSONALIZATION
+Adapt tone and examples according to the user's profile context provided in the prompt.
 
-    const rawMood = (moodResponse?.choices?.[0]?.message?.content || '').trim().toLowerCase();
-    const normalizedMood = rawMood.replace(/[^a-z]/g, '');
+----------------------------------------------------
+EMOTIONAL DETECTION & INTERNAL METADATA
+For every user message, you must internally detect the mood and suggest resources. 
+You must output a strictly valid JSON object matching this schema exactly:
+{
+  "response": "Your natural, warm, conversational response to the user. Keep it concise, empathetic, and use short paragraphs. Avoid long text blocks.",
+  "detectedMood": "Happy|Neutral|Sad|Anxious|Angry|Lonely|Burnout|Overthinking|Stressed|Fear|Panic|Hopeless|Confused|Motivated",
+  "confidenceScore": 0.85,
+  "reasonForMood": "Explanation of why this mood was chosen.",
+  "suggestedCbtTechnique": "Name of CBT technique if applicable.",
+  "recommendedBreathing": "Name of breathing exercise if applicable.",
+  "recommendedResource": "Name of learning resource if applicable.",
+  "wellnessTip": "A small wellness tip.",
+  "crisisRiskLevel": "Low|Medium|High",
+  "actionSuggestions": ["Take a walk", "Try 4-7-8 Breathing"]
+}
 
-    if (MOOD_LABELS.includes(normalizedMood)) {
-      return normalizedMood;
-    }
+----------------------------------------------------
+CRISIS DETECTION
+Continuously monitor for signs of suicidal thoughts, self-harm, or severe depression. If detected, set crisisRiskLevel to "High" and respond compassionately, recommending they contact trusted family, friends, or emergency services. Never panic or guilt the user.
 
-    return 'neutral';
-  } catch (error) {
-    console.warn('[Mood Detection] Falling back to neutral:', error?.message || error);
-    return 'neutral';
-  }
-};
+Your ultimate goal is to help users feel heard, supported, understood, and empowered while encouraging healthy coping strategies.`;
 
-const parseSuggestionLines = (rawText) => {
-  if (!rawText || typeof rawText !== 'string') {
-    return [];
-  }
-
-  return rawText
-    .split('\n')
-    .map((line) => line.replace(/^[-*\d.)\s]+/, '').trim())
-    .filter(Boolean)
-    .map((line) => line.length > 90 ? `${line.slice(0, 87).trim()}...` : line)
-    .slice(0, 3);
-};
-
-const getFallbackSuggestions = (mood) => {
-  const normalizedMood = (mood || '').toLowerCase();
-  return (FALLBACK_SUGGESTIONS[normalizedMood] || FALLBACK_SUGGESTIONS.neutral).slice(0, 3);
-};
-
-const generateSuggestionsFromMessage = async (message, mood, language = 'en') => {
-  const normalizedMood = MOOD_LABELS.includes((mood || '').toLowerCase()) ? mood.toLowerCase() : 'neutral';
-  const languageName = getLanguageName(language);
-
-  try {
-    const suggestionResponse = await openai.chat.completions.create({
-      model: MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: `Based on this message and mood, suggest 2 or 3 simple mental wellness actions. Return each suggestion on a new line. Keep each suggestion short, practical, and supportive. Respond strictly in ${languageName}.`,
-        },
-        {
-          role: 'user',
-          content: `Mood: ${normalizedMood}\nMessage: ${message}`,
-        },
-      ],
-      temperature: 0.4,
-      max_tokens: 120,
-      top_p: 1,
-    });
-
-    const rawText = suggestionResponse?.choices?.[0]?.message?.content || '';
-    const parsed = parseSuggestionLines(rawText);
-
-    if (parsed.length >= 2) {
-      return parsed;
-    }
-
-    return getFallbackSuggestions(normalizedMood);
-  } catch (error) {
-    console.warn('[Suggestions] Falling back to static suggestions:', error?.message || error);
-    return getFallbackSuggestions(normalizedMood);
-  }
-};
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -856,12 +793,10 @@ app.post('/chat', async (req, res) => {
         practical: 'Respond with practical, actionable advice. Focus on specific techniques and strategies.',
       };
 
-      personalizedSystemPrompt = `
-You are a supportive mental health assistant.
-Respond ONLY in ${languageName}.
-Be empathetic and simple.
+      personalizedSystemPrompt = `${SYSTEM_PROMPT}
 
-USER PROFILE:
+USER PROFILE CONTEXT (Adapt to this):
+Respond ONLY in ${languageName}.
 ${role ? `- Role: ${roleContext[role] || 'General user'}` : ''}
 ${concern ? `- Main concern: ${concern}` : ''}
 ${supportStyle ? `- Support style preference: ${styleContext[supportStyle] || 'Balanced support'}` : ''}
@@ -869,6 +804,8 @@ ${supportStyle ? `- Support style preference: ${styleContext[supportStyle] || 'B
 ${roleContext[role] ? `Remember this context when providing examples and tailoring advice to their lifestyle.` : ''}
 ${styleContext[supportStyle] ? `Always match this tone and approach in your responses.` : ''}
 `;
+    } else {
+      personalizedSystemPrompt = `${SYSTEM_PROMPT}\n\nRespond ONLY in ${languageName}.`;
     }
 
     const prompt = `
@@ -878,8 +815,11 @@ ${ragData.sources && ragData.sources.length > 0
 User: ${message.trim()}
 `;
 
-    const [response, detectedMood] = await Promise.all([
-      openai.chat.completions.create({
+    let aiResponse = "";
+    let parsedMetadata = {};
+
+    try {
+      const response = await openai.chat.completions.create({
         model: MODEL,
         messages: [
           {
@@ -892,30 +832,33 @@ User: ${message.trim()}
           },
         ],
         temperature: 0.7,
-        max_tokens: 500,
+        max_tokens: 800,
         top_p: 0.95,
-      }),
-      detectMoodFromMessage(message.trim()),
-    ]);
-
-    const suggestions = await generateSuggestionsFromMessage(message.trim(), detectedMood, language);
-
-    const aiResponse = response.choices[0]?.message?.content;
-
-    if (!aiResponse) {
-      console.error(`[${PROVIDER_LABEL}] Empty response from API`);
-      return res.status(500).json({
-        error: 'Failed to generate response from AI',
+        response_format: { type: "json_object" },
       });
+
+      const rawContent = response.choices[0]?.message?.content;
+      parsedMetadata = JSON.parse(rawContent || '{}');
+      aiResponse = parsedMetadata.response || 'I am here for you.';
+    } catch (apiError) {
+      console.error(`[${PROVIDER_LABEL}] API or Parsing error:`, apiError);
+      return res.status(500).json({ error: 'Failed to generate response from AI' });
     }
 
     console.log(`[${new Date().toISOString()}] Response generated for user: ${userId}`);
 
-    // Return response with RAG metadata
+    // Return response with RAG and LLM metadata
     res.json({
       response: aiResponse,
-      mood: detectedMood,
-      suggestions,
+      mood: parsedMetadata.detectedMood || 'Neutral',
+      suggestions: parsedMetadata.actionSuggestions || ["Take a deep breath", "Reflect on your day"],
+      confidenceScore: parsedMetadata.confidenceScore,
+      reasonForMood: parsedMetadata.reasonForMood,
+      cbtTechnique: parsedMetadata.suggestedCbtTechnique,
+      breathing: parsedMetadata.recommendedBreathing,
+      resource: parsedMetadata.recommendedResource,
+      wellnessTip: parsedMetadata.wellnessTip,
+      crisisRiskLevel: parsedMetadata.crisisRiskLevel || 'Low',
       crisis,
       userId,
       timestamp: new Date().toISOString(),

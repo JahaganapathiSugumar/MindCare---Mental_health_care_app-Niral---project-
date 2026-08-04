@@ -33,10 +33,12 @@ import AchievementGalleryScreen from '../screens/AchievementGalleryScreen';
 import HeatmapScreen from '../screens/HeatmapScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import EmergencyFAB from '../components/ui/Premium/EmergencyFAB';
+import GlobalNova from '../components/GlobalNova';
 
 import TherapistHubScreen from '../screens/TherapistHubScreen';
 import NearbyTherapistsScreen from '../screens/NearbyTherapistsScreen';
 import TherapistProfileScreen from '../screens/TherapistProfileScreen';
+import LearningHubScreen from '../screens/LearningHubScreen';
 
 const Stack = createStackNavigator();
 
@@ -158,9 +160,9 @@ const RootNavigator = () => {
                 setLoading(true);
                 setUser(authUser);
                 
-                // Fetch progress from Firestore to sync local state
                 try {
-                  const db = getFirestore();
+                  const { getFirebaseInstance } = await import('../firebase');
+                  const { db } = getFirebaseInstance();
                   const docRef = doc(db, 'users', authUser.uid);
                   const docSnap = await getDoc(docRef);
                   
@@ -346,6 +348,7 @@ const RootNavigator = () => {
             <Stack.Screen name="TherapistHub" component={TherapistHubScreen} />
             <Stack.Screen name="NearbyTherapists" component={NearbyTherapistsScreen} options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="TherapistProfile" component={TherapistProfileScreen} />
+            <Stack.Screen name="LearningHub" component={LearningHubScreen} options={{ headerShown: false }} />
           </>
         ) : (
           <>
@@ -355,7 +358,12 @@ const RootNavigator = () => {
           </>
         )}
       </Stack.Navigator>
-      {user && <EmergencyFAB />}
+      {user && (
+        <>
+          <EmergencyFAB />
+          <GlobalNova />
+        </>
+      )}
     </NavigationContainer>
   );
 };
