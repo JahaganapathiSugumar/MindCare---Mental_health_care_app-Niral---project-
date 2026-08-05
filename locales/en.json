@@ -99,7 +99,12 @@
     "hoursAgo": "{{count}} hr ago",
     "daysAgo": "{{count}} day ago",
     "daysAgo_plural": "{{count}} days ago",
-    "justNow": "Just now"
+    "justNow": "Just now",
+    "voiceAi": "Voice AI",
+    "companion": "Companion",
+    "wellness": "Wellness",
+    "exercises": "Exercises",
+    "details": "Details"
   },
   "mood": {
     "title": "AI Mood Insights",
@@ -167,10 +172,10 @@
     "noMoodRecords": "No mood records yet",
     "appearance": "Appearance",
     "darkMode": "Dark Mode",
-    "darkModeSubtitle": "Calming low-light theme for night use.",
+    "darkModeSubtitle": "Soothing for nighttime",
     "notifications": "Notifications",
-    "supportiveReminders": "Supportive reminders",
-    "supportiveRemindersSubtitle": "Daily check-ins and smart nudges based on your AI chat activity.",
+    "supportiveReminders": "Supportive Reminders",
+    "supportiveRemindersSubtitle": "Daily check-ins & encouragement",
     "updatingPreference": "Updating preference...",
     "logout": "Logout",
     "signOut": "Sign Out",
@@ -191,7 +196,18 @@
     "noEmailAvailable": "No email available",
     "editTitle": "Edit Profile",
     "enterFullName": "Enter your full name",
-    "validation": "Validation"
+    "validation": "Validation",
+    "personalizePrompt": "Tap the pencil to personalize your AI.",
+    "safetyCircle": "💙 Safety Circle",
+    "addTrustedContact": "Add someone you trust",
+    "addTrustedContactSubtext": "A contact to reach out to during difficult moments",
+    "languages": "🌐 Languages",
+    "settings": "⚙️ Settings",
+    "publicLeaderboard": "Public Leaderboard",
+    "publicLeaderboardSubtitle": "Opt-in to global ranking",
+    "accountControls": "Account & Data Controls",
+    "accountControlsSubtitle": "Privacy, downloads, & deletion",
+    "logoutBtn": "Logout"
   },
   "onboarding": {
     "skip": "Skip",
@@ -313,5 +329,26 @@
     "edit": "Edit",
     "saved": "Saved",
     "remove": "Remove"
+  },
+  "dashboard": {
+    "goodMorning": "Good Morning",
+    "goodAfternoon": "Good Afternoon",
+    "goodEvening": "Good Evening",
+    "dayStreak": "Day Streak",
+    "level": "Level",
+    "xp": "XP",
+    "dailyWellness": "Daily Wellness",
+    "mood": "Mood",
+    "mind": "Mind",
+    "body": "Body",
+    "recentActivity": "Recent Activity",
+    "achievements": "Achievements",
+    "viewUnlocked": "View Unlocked",
+    "leaderboard": "Leaderboard",
+    "globalRank": "Global Rank",
+    "heatmap": "Heatmap",
+    "activityLog": "Activity Log",
+    "analytics": "Analytics",
+    "moodReports": "Mood & Reports"
   }
 }

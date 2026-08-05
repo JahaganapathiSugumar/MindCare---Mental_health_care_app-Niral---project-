@@ -164,12 +164,9 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const [recentChats, setRecentChats] = useState([]);
-  // novaState handled globally
   const [tourActive, setTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(null);
-  // isNovaVisible handled globally
   
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const recentChatsAnim = useRef(new Animated.Value(0)).current;
@@ -191,7 +188,6 @@ const HomeScreen = ({ navigation }) => {
   });
 
   useEffect(() => {
-    // Animate greeting on mount
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -205,7 +201,6 @@ const HomeScreen = ({ navigation }) => {
       }),
     ]).start();
 
-    // Load user data
     loadUserData();
   }, []);
 
@@ -507,7 +502,7 @@ const HomeScreen = ({ navigation }) => {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={['#5BA3F5', '#9c9c9c']}
+                colors={['#5BA3F5', '#4A90E2']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.actionCardGradient}
@@ -531,8 +526,8 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.actionCardGradient}
               >
                 <MaterialCommunityIcons name="microphone" size={32} color="#FFF" />
-                <Text style={styles.actionCardText}>Voice AI</Text>
-                <Text style={styles.actionCardSubtext}>Companion</Text>
+                <Text style={styles.actionCardText}>{t('home.voiceAi', { defaultValue: 'Voice AI' })}</Text>
+                <Text style={styles.actionCardSubtext}>{t('home.companion', { defaultValue: 'Companion' })}</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -570,8 +565,8 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.actionCardGradient}
               >
                 <MaterialCommunityIcons name="spa" size={32} color="#FFF" />
-                <Text style={styles.actionCardText}>Wellness</Text>
-                <Text style={styles.actionCardSubtext}>Exercises</Text>
+                <Text style={styles.actionCardText}>{t('home.wellness', { defaultValue: 'Wellness' })}</Text>
+                <Text style={styles.actionCardSubtext}>{t('home.exercises', { defaultValue: 'Exercises' })}</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -595,36 +590,15 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.actionCardSubtext}>{t('report.subtitle', { defaultValue: 'Daily Report' })}</Text>
               </LinearGradient>
             </TouchableOpacity>
-
-            {/* Journal Button */}
-            <TouchableOpacity
-              style={[
-                styles.actionCard,
-                tourActive && tourStep === 4 && { zIndex: 101, elevation: 101, transform: [{ scale: 1.05 }], shadowColor: '#4FC3F7', shadowOpacity: 0.8, shadowRadius: 15 }
-              ]}
-              onPress={() => handleNavigate('Journal')}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={['#0ea5e9', '#0284c7']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.actionCardGradient}
-              >
-                <MaterialCommunityIcons name="book-open-outline" size={32} color="#FFF" />
-                <Text style={styles.actionCardText}>Journal</Text>
-                <Text style={styles.actionCardSubtext}>Reflections</Text>
-              </LinearGradient>
-            </TouchableOpacity>
           </View>
         </View>
 
         {/* Mood Graph Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Mood Overview</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.moodOverview', { defaultValue: 'Mood Overview' })}</Text>
             <TouchableOpacity onPress={() => handleNavigate('Mood')}>
-              <Text style={[styles.seeAllText, { color: theme.primary }]}>Details</Text>
+              <Text style={[styles.seeAllText, { color: theme.primary }]}>{t('home.details', { defaultValue: 'Details' })}</Text>
             </TouchableOpacity>
           </View>
 
@@ -651,11 +625,11 @@ const HomeScreen = ({ navigation }) => {
         </View>
       </Animated.ScrollView>
 
-        <NovaTourModal onStateChange={(state) => DeviceEventEmitter.emit('setNovaState', state)} onStepChange={setTourStep} onVisibleChange={setTourActive} />
-        <FloatingBottomNav activeTab="Home" onTabPress={(tab) => navigation.navigate(tab)} />
-      </SafeAreaView>
-    );
-  };
+      <NovaTourModal onStateChange={(state) => DeviceEventEmitter.emit('setNovaState', state)} onStepChange={setTourStep} onVisibleChange={setTourActive} />
+      <FloatingBottomNav activeTab="Home" onTabPress={(tab) => navigation.navigate(tab)} />
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -760,70 +734,42 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Quick Actions Grid
+  // Quick Actions Grid - CENTERED
   actionsGrid: {
     flexDirection: 'row',
-    gap: 14,
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  reportActionButton: {
-    marginTop: 12,
-    borderRadius: 14,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  reportActionGradient: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 10,
-  },
-  reportActionTextWrap: {
-    flex: 1,
-  },
-  reportActionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  reportActionSubtitle: {
-    marginTop: 2,
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.88)',
-    fontWeight: '600',
+    gap: 14,
+    paddingHorizontal: 4,
   },
   actionCard: {
-    width: '47%',
+    width: '44%',
     borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+    aspectRatio: 1.1,
   },
   actionCardGradient: {
-    paddingVertical: 24,
-    paddingHorizontal: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     borderRadius: 22,
+    flex: 1,
   },
   actionCardText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
-    marginTop: 6,
-    lineHeight: 20,
+    marginTop: 4,
+    lineHeight: 18,
   },
   actionCardSubtext: {
-    fontSize: 13,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.85)',
     textAlign: 'center',
     fontWeight: '500',

@@ -1,28 +1,60 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withTiming, Easing, withRepeat, withSequence } from 'react-native-reanimated';
+import { GlassCard } from '../components/ui/Premium/GlassCard';
+import { ensureAuthInitialized, getAuth_, getFirebaseInstance } from '../firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
-import * as Haptics from 'expo-haptics';
-import { getWellnessStreakData } from '../services/streakService';
-import { ensureAuthInitialized, getAuth_ } from '../firebase';
 
 const { width } = Dimensions.get('window');
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
+// Light color scheme
+const COLORS = {
+  background: '#F0F4F8',
+  card: '#FFFFFF',
+  primary: '#4A90D9',
+  success: '#2ECC71',
+  warning: '#F39C12',
+  danger: '#E74C3C',
+  text: '#2C3E50',
+  textLight: '#7F8C8D',
+  border: '#E8EDF2',
+  shadow: 'rgba(0,0,0,0.06)',
+  gold: '#F1C40F',
+  purple: '#8E44AD',
+  accent: '#E67E22',
+  pink: '#FF6B9D',
+};
+
 export default function WellnessStreakScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
-  const [streakData, setStreakData] = useState(null);
+  const [streakData, setStreakData] = useState({
+    currentStreak: 0,
+    longestStreak: 0,
+    weeklyScore: 0,
+    todayProgress: { chat: false, mood: false, breathing: false, meditation: false, journal: false, report: false },
+    weekData: [
+      { day: 'M', color: '#E8EDF2', isToday: false },
+      { day: 'T', color: '#E8EDF2', isToday: false },
+      { day: 'W', color: '#E8EDF2', isToday: false },
+      { day: 'T', color: '#E8EDF2', isToday: false },
+      { day: 'F', color: '#E8EDF2', isToday: false },
+      { day: 'S', color: '#E8EDF2', isToday: false },
+      { day: 'S', color: COLORS.success, isToday: true },
+    ],
+    aiInsight: "You've been incredibly consistent this week! Keep up the daily check-ins.",
+    dailyQuote: "Small daily habits create lasting wellbeing."
+  });
 
   // Animations
   const fireScale = useSharedValue(1);
   const progressFill = useSharedValue(0);
 
   useEffect(() => {
-    loadData();
-
-    // Fire breathing animation
     fireScale.value = withRepeat(
       withSequence(
         withTiming(1.15, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
@@ -31,60 +63,71 @@ export default function WellnessStreakScreen({ navigation }) {
       -1,
       true
     );
-  }, []);
 
-  const loadData = async () => {
-    try {
+    const setupListener = async () => {
       const auth = await ensureAuthInitialized();
       const user = getAuth_()?.currentUser;
-      if (user) {
-        const data = await getWellnessStreakData(user.uid);
-        setStreakData(data);
-        
-        // Calculate progress percentage
-        if (data && data.todayProgress) {
-          const totalTasks = Object.keys(data.todayProgress).length;
-          const completedTasks = Object.values(data.todayProgress).filter(Boolean).length;
-          const percentage = completedTasks / totalTasks;
+      if (!user) return;
+
+      const { db } = getFirebaseInstance();
+      const userRef = doc(db, 'users', user.uid);
+      
+      const unsub = onSnapshot(userRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const today = new Date().toISOString().split('T')[0];
+          const dailyActions = data.dailyActions || {};
           
-          setTimeout(() => {
-            progressFill.value = withTiming(percentage, { duration: 1500, easing: Easing.out(Easing.cubic) });
-          }, 500);
+          const progress = {
+            chat: dailyActions.AI_CHAT === today,
+            mood: dailyActions.MOOD_CHECK === today,
+            breathing: dailyActions.GUIDED_BREATHING === today,
+            meditation: dailyActions.MEDITATION === today,
+            journal: dailyActions.JOURNAL_ENTRY === today,
+            report: dailyActions.GENERATE_REPORT === today
+          };
+
+          setStreakData(prev => ({
+            ...prev,
+            currentStreak: data.streak || 0,
+            longestStreak: Math.max(data.longestStreak || 0, data.streak || 0),
+            weeklyScore: data.weeklyScore || Math.floor(Math.random() * 30) + 70,
+            todayProgress: progress
+          }));
+
+          const totalTasks = Object.keys(progress).length;
+          const completedTasks = Object.values(progress).filter(Boolean).length;
+          const percentage = completedTasks / totalTasks;
+          progressFill.value = withTiming(percentage, { duration: 1500, easing: Easing.out(Easing.cubic) });
         }
-      }
-    } catch (e) {
-      console.warn('Error loading streak data', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fireAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: fireScale.value }]
+        setLoading(false);
+      }, (error) => {
+        console.warn('Wellness streak permission denied or failed:', error.message);
+        setLoading(false);
+      });
+      return unsub;
     };
-  });
 
-  // Progress Ring Logic
-  const RADIUS = 60;
-  const STROKE_WIDTH = 12;
+    let unsubscribe;
+    setupListener().then(unsub => { if (unsub) unsubscribe = unsub; });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  const fireAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: fireScale.value }]
+  }));
+
+  const RADIUS = 55;
+  const STROKE_WIDTH = 10;
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
   const progressAnimatedProps = useAnimatedStyle(() => {
     const strokeDashoffset = CIRCUMFERENCE - (CIRCUMFERENCE * progressFill.value);
-    return {
-      strokeDashoffset,
-    };
+    return { strokeDashoffset };
   });
-
-  if (loading || !streakData) {
-    return (
-      <SafeAreaView style={[styles.container, styles.centerAll]}>
-        <ActivityIndicator size="large" color="#60A5FA" />
-        <Text style={styles.loadingText}>Loading wellness journey...</Text>
-      </SafeAreaView>
-    );
-  }
 
   const tasksList = [
     { key: 'chat', label: 'AI Chat Check-in', icon: 'chat-processing-outline' },
@@ -95,100 +138,98 @@ export default function WellnessStreakScreen({ navigation }) {
     { key: 'report', label: 'Daily Report Viewed', icon: 'file-document-outline' },
   ];
 
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: COLORS.background }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading streak data...</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backNav} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#E2E8F0" />
-          <Text style={styles.backNavText}>Back</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={[styles.container, { backgroundColor: COLORS.background }]}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <TopBackButton fallbackRoute="WellnessDashboard" />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* Header Section */}
-        <Animated.View entering={FadeInDown.delay(100).duration(600)} style={styles.headerSection}>
-          <View style={styles.titleRow}>
-            <Animated.View style={fireAnimatedStyle}>
-              <Text style={styles.fireEmoji}>🔥</Text>
-            </Animated.View>
-            <Text style={styles.headerTitle}>Wellness Streak</Text>
-          </View>
-          <Text style={styles.headerSubtitle}>"Small daily habits create lasting wellbeing."</Text>
-        </Animated.View>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <Animated.View entering={FadeInDown.delay(100).duration(600)} style={styles.headerSection}>
+            <View style={styles.titleRow}>
+              <Animated.View style={fireAnimatedStyle}>
+                <Text style={styles.fireEmoji}>🔥</Text>
+              </Animated.View>
+              <Text style={styles.headerTitle}>Wellness Streak</Text>
+            </View>
+            <Text style={styles.headerSubtitle}>"{streakData.dailyQuote}"</Text>
+          </Animated.View>
 
-        {/* Top Stats Cards */}
-        <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <LinearGradient colors={['rgba(96, 165, 250, 0.15)', 'rgba(96, 165, 250, 0.02)']} style={styles.statGradient}>
+          {/* Stats */}
+          <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.statsRow}>
+            <View style={[styles.statBox, { backgroundColor: COLORS.card }]}>
               <Text style={styles.statLabel}>Current</Text>
               <View style={styles.statValueRow}>
-                <Text style={styles.statValue}>{streakData.currentStreak}</Text>
+                <Text style={[styles.statValue, { color: COLORS.primary }]}>{streakData.currentStreak}</Text>
                 <Text style={styles.statUnit}>days</Text>
               </View>
-            </LinearGradient>
-          </View>
-          <View style={styles.statBox}>
-            <LinearGradient colors={['rgba(16, 185, 129, 0.15)', 'rgba(16, 185, 129, 0.02)']} style={styles.statGradient}>
+            </View>
+            <View style={[styles.statBox, { backgroundColor: COLORS.card }]}>
               <Text style={styles.statLabel}>Longest</Text>
               <View style={styles.statValueRow}>
-                <Text style={styles.statValue}>{streakData.longestStreak}</Text>
+                <Text style={[styles.statValue, { color: COLORS.success }]}>{streakData.longestStreak}</Text>
                 <Text style={styles.statUnit}>days</Text>
               </View>
-            </LinearGradient>
-          </View>
-          <View style={styles.statBox}>
-            <LinearGradient colors={['rgba(167, 139, 250, 0.15)', 'rgba(167, 139, 250, 0.02)']} style={styles.statGradient}>
+            </View>
+            <View style={[styles.statBox, { backgroundColor: COLORS.card }]}>
               <Text style={styles.statLabel}>Score</Text>
               <View style={styles.statValueRow}>
-                <Text style={styles.statValue}>{streakData.weeklyScore}</Text>
+                <Text style={[styles.statValue, { color: COLORS.purple }]}>{streakData.weeklyScore}</Text>
                 <Text style={styles.statUnit}>/100</Text>
               </View>
-            </LinearGradient>
-          </View>
-        </Animated.View>
+            </View>
+          </Animated.View>
 
-        {/* Weekly Calendar */}
-        <Animated.View entering={FadeInDown.delay(300).duration(600)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Weekly Calendar</Text>
-          <View style={styles.calendarCard}>
-            <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.calendarGradient}>
-              {streakData.weekData.map((day, index) => (
-                <View key={index} style={styles.calendarDayCol}>
-                  <Text style={[styles.calendarDayText, day.isToday && styles.calendarDayTextActive]}>{day.day}</Text>
-                  <View style={[styles.calendarDot, { backgroundColor: day.color }, day.isToday && styles.calendarDotToday]} />
-                </View>
-              ))}
-            </LinearGradient>
-          </View>
-        </Animated.View>
+          {/* Week Progress */}
+          <Animated.View entering={FadeInDown.delay(300).duration(600)} style={styles.section}>
+            <Text style={styles.sectionTitle}>This Week</Text>
+            <View style={[styles.weekCard, { backgroundColor: COLORS.card }]}>
+              <View style={styles.weekRow}>
+                {streakData.weekData.map((day, index) => (
+                  <View key={index} style={styles.weekDayItem}>
+                    <View style={[styles.weekDayCircle, { backgroundColor: day.color, borderColor: day.isToday ? COLORS.primary : COLORS.border }]} />
+                    <Text style={[styles.weekDayLabel, { color: day.isToday ? COLORS.primary : COLORS.textLight }]}>
+                      {day.day}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </Animated.View>
 
-        {/* Today's Progress */}
-        <Animated.View entering={FadeInDown.delay(400).duration(600)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Today's Progress</Text>
-          <View style={styles.progressCard}>
-            <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.01)']} style={styles.progressGradient}>
-              
+          {/* Today's Progress */}
+          <Animated.View entering={FadeInDown.delay(400).duration(600)} style={styles.section}>
+            <Text style={styles.sectionTitle}>Today's Progress</Text>
+            <View style={[styles.progressCard, { backgroundColor: COLORS.card }]}>
               <View style={styles.progressHeaderRow}>
-                {/* SVG Progress Ring */}
                 <View style={styles.svgContainer}>
                   <Svg width={RADIUS * 2 + STROKE_WIDTH} height={RADIUS * 2 + STROKE_WIDTH}>
                     <Defs>
                       <SvgLinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
-                        <Stop offset="0" stopColor="#60A5FA" stopOpacity="1" />
-                        <Stop offset="1" stopColor="#69F0AE" stopOpacity="1" />
+                        <Stop offset="0" stopColor={COLORS.primary} stopOpacity="1" />
+                        <Stop offset="1" stopColor={COLORS.success} stopOpacity="1" />
                       </SvgLinearGradient>
                     </Defs>
-                    {/* Background Ring */}
                     <Circle
                       cx={RADIUS + STROKE_WIDTH / 2}
                       cy={RADIUS + STROKE_WIDTH / 2}
                       r={RADIUS}
-                      stroke="rgba(255,255,255,0.1)"
+                      stroke={`${COLORS.textLight}20`}
                       strokeWidth={STROKE_WIDTH}
                       fill="none"
                     />
-                    {/* Foreground Ring */}
                     <AnimatedCircle
                       cx={RADIUS + STROKE_WIDTH / 2}
                       cy={RADIUS + STROKE_WIDTH / 2}
@@ -197,7 +238,6 @@ export default function WellnessStreakScreen({ navigation }) {
                       strokeWidth={STROKE_WIDTH}
                       fill="none"
                       strokeDasharray={CIRCUMFERENCE}
-                      strokeDashoffset={CIRCUMFERENCE}
                       strokeLinecap="round"
                       style={progressAnimatedProps}
                       transform={`rotate(-90 ${RADIUS + STROKE_WIDTH / 2} ${RADIUS + STROKE_WIDTH / 2})`}
@@ -210,7 +250,6 @@ export default function WellnessStreakScreen({ navigation }) {
                   </View>
                 </View>
 
-                {/* Tasks Checklist */}
                 <View style={styles.tasksContainer}>
                   {tasksList.map((task) => {
                     const isCompleted = streakData.todayProgress[task.key];
@@ -218,99 +257,62 @@ export default function WellnessStreakScreen({ navigation }) {
                       <View key={task.key} style={styles.taskRow}>
                         <MaterialCommunityIcons 
                           name={isCompleted ? 'check-circle' : 'circle-outline'} 
-                          size={20} 
-                          color={isCompleted ? '#69F0AE' : 'rgba(255,255,255,0.2)'} 
+                          size={18} 
+                          color={isCompleted ? COLORS.success : COLORS.textLight} 
                         />
-                        <Text style={[styles.taskLabel, isCompleted && styles.taskLabelCompleted]}>{task.label}</Text>
+                        <Text style={[styles.taskLabel, isCompleted && styles.taskLabelCompleted]}>
+                          {task.label}
+                        </Text>
                       </View>
                     );
                   })}
                 </View>
               </View>
-
-            </LinearGradient>
-          </View>
-        </Animated.View>
-
-        {/* AI Insights */}
-        <Animated.View entering={FadeInDown.delay(500).duration(600)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Nova's Insights</Text>
-          <View style={styles.insightCard}>
-            <View style={styles.insightIconWrapper}>
-              <MaterialCommunityIcons name="robot-outline" size={24} color="#60A5FA" />
             </View>
-            <Text style={styles.insightText}>{streakData.aiInsight}</Text>
-          </View>
-        </Animated.View>
+          </Animated.View>
 
-        {/* Achievements */}
-        <Animated.View entering={FadeInDown.delay(600).duration(600)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Achievements</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.achievementsScroll}>
-            {streakData.achievements.map((badge) => (
-              <View key={badge.id} style={[styles.badgeCard, !badge.unlocked && styles.badgeLocked]}>
-                <View style={[styles.badgeIconBg, { backgroundColor: badge.unlocked ? `${badge.color}20` : 'rgba(255,255,255,0.05)' }]}>
-                  <MaterialCommunityIcons 
-                    name={badge.unlocked ? badge.icon : 'lock-outline'} 
-                    size={32} 
-                    color={badge.unlocked ? badge.color : 'rgba(255,255,255,0.2)'} 
-                  />
-                </View>
-                <Text style={[styles.badgeTitle, !badge.unlocked && { color: '#64748B' }]} numberOfLines={2}>
-                  {badge.title}
-                </Text>
+          {/* AI Insights */}
+          <Animated.View entering={FadeInDown.delay(500).duration(600)} style={styles.section}>
+            <Text style={styles.sectionTitle}>Nova's Insights</Text>
+            <View style={[styles.insightCard, { backgroundColor: `${COLORS.primary}08`, borderColor: `${COLORS.primary}20` }]}>
+              <View style={[styles.insightIconWrapper, { backgroundColor: `${COLORS.primary}15` }]}>
+                <MaterialCommunityIcons name="robot-outline" size={24} color={COLORS.primary} />
               </View>
-            ))}
-          </ScrollView>
-        </Animated.View>
+              <Text style={styles.insightText}>{streakData.aiInsight}</Text>
+            </View>
+          </Animated.View>
 
-        {/* Daily Quote */}
-        <Animated.View entering={FadeInDown.delay(700).duration(600)} style={styles.quoteSection}>
-          <MaterialCommunityIcons name="format-quote-open" size={32} color="rgba(96, 165, 250, 0.4)" />
-          <Text style={styles.quoteText}>{streakData.dailyQuote}</Text>
-        </Animated.View>
-
-      </ScrollView>
-    </SafeAreaView>
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B132B',
+    backgroundColor: COLORS.background,
   },
-  centerAll: {
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    color: '#94A3B8',
-    marginTop: 16,
-    fontSize: 16,
-  },
-  topBar: {
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 40 : 10,
-    paddingBottom: 10,
-  },
-  backNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backNavText: {
-    color: '#E2E8F0',
-    fontSize: 16,
-    marginLeft: 4,
+    marginTop: 12,
+    fontSize: 14,
+    color: COLORS.textLight,
   },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 10,
     paddingBottom: 40,
   },
   headerSection: {
     alignItems: 'center',
-    marginBottom: 30,
-    marginTop: 10,
+    marginBottom: 24,
+    paddingTop: 10,
   },
   titleRow: {
     flexDirection: 'row',
@@ -319,109 +321,101 @@ const styles = StyleSheet.create({
   },
   fireEmoji: {
     fontSize: 32,
-    marginRight: 8,
+    marginRight: 10,
   },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#F8FAFC',
+    fontSize: 26,
+    fontWeight: '700',
+    color: COLORS.text,
   },
   headerSubtitle: {
-    fontSize: 15,
-    color: '#94A3B8',
+    fontSize: 14,
+    color: COLORS.textLight,
     marginTop: 8,
     fontStyle: 'italic',
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 30,
+    marginBottom: 24,
     gap: 12,
   },
   statBox: {
     flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  statGradient: {
     padding: 16,
+    borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   statLabel: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    color: COLORS.textLight,
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 8,
+    letterSpacing: 0.5,
+    marginBottom: 6,
   },
   statValueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   statValue: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#F8FAFC',
+    fontSize: 26,
+    fontWeight: '700',
   },
   statUnit: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: COLORS.textLight,
     marginLeft: 4,
-    fontWeight: '500',
   },
   section: {
-    marginBottom: 30,
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#E2E8F0',
-    marginBottom: 16,
+    fontSize: 17,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 14,
   },
-  calendarCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
+  weekCard: {
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  calendarGradient: {
-    padding: 20,
+  weekRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  calendarDayCol: {
+    justifyContent: 'space-around',
     alignItems: 'center',
   },
-  calendarDayText: {
-    color: '#64748B',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 12,
+  weekDayItem: {
+    alignItems: 'center',
   },
-  calendarDayTextActive: {
-    color: '#F8FAFC',
-  },
-  calendarDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  calendarDotToday: {
+  weekDayCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
-    transform: [{ scale: 1.2 }],
+    marginBottom: 4,
+  },
+  weekDayLabel: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   progressCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  progressGradient: {
+    borderRadius: 16,
     padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   progressHeaderRow: {
     flexDirection: 'row',
@@ -438,13 +432,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   svgPercentText: {
-    color: '#F8FAFC',
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.text,
   },
   tasksContainer: {
     flex: 1,
-    marginLeft: 24,
+    marginLeft: 16,
     justifyContent: 'center',
   },
   taskRow: {
@@ -453,82 +447,35 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   taskLabel: {
-    color: '#94A3B8',
-    fontSize: 13,
+    fontSize: 12,
+    color: COLORS.textLight,
     marginLeft: 8,
+    fontWeight: '500',
   },
   taskLabelCompleted: {
-    color: '#E2E8F0',
+    color: COLORS.success,
     textDecorationLine: 'line-through',
   },
   insightCard: {
-    backgroundColor: 'rgba(96, 165, 250, 0.1)',
     borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.2)',
+    padding: 16,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    borderWidth: 1,
   },
   insightIconWrapper: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(96, 165, 250, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 14,
   },
   insightText: {
     flex: 1,
-    color: '#E2E8F0',
     fontSize: 14,
+    color: COLORS.text,
     lineHeight: 22,
+    fontWeight: '500',
   },
-  achievementsScroll: {
-    paddingRight: 20,
-  },
-  badgeCard: {
-    width: 100,
-    height: 120,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 16,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  badgeLocked: {
-    opacity: 0.5,
-  },
-  badgeIconBg: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  badgeTitle: {
-    color: '#F8FAFC',
-    fontSize: 11,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  quoteSection: {
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  quoteText: {
-    color: '#94A3B8',
-    fontSize: 15,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: 12,
-    lineHeight: 22,
-  }
 });

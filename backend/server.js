@@ -762,7 +762,7 @@ app.post('/chat', async (req, res) => {
 
     if (crisis.detected && crisis.level === 'high') {
       const immediateResponse = getCrisisImmediateResponse(language);
-      const urgentSuggestions = await generateSuggestionsFromMessage(message.trim(), 'sad', language);
+      const urgentSuggestions = FALLBACK_SUGGESTIONS['sad'] || ["Reach out to a trusted contact.", "Take slow deep breaths."];
 
       return res.json({
         response: immediateResponse,

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import TopBackButton from '../components/ui/Premium/TopBackButton';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { updateAchievement } from '../services/gamificationService';
+import { getAuth_ } from '../firebase';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 
 export default function JournalScreen({ navigation }) {
@@ -15,6 +17,19 @@ export default function JournalScreen({ navigation }) {
     { title: "Today's Reflection", desc: "What went well today?", icon: "moon-full" },
     { title: "Gratitude", desc: "What are you thankful for?", icon: "heart-outline" },
   ];
+
+  const handleSave = async () => {
+    if (!journalText.trim()) return;
+    
+    // Achievement updates
+    const user = getAuth_()?.currentUser;
+    if (user) {
+      await updateAchievement(user.uid, 'first_journal');
+      await updateAchievement(user.uid, 'journal_master');
+    }
+    
+    setJournalText('');
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -60,7 +75,10 @@ export default function JournalScreen({ navigation }) {
             />
           </Animated.View>
 
-          <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.primary }]}>
+          <TouchableOpacity 
+            style={[styles.saveButton, { backgroundColor: theme.primary }]}
+            onPress={handleSave}
+          >
             <Text style={styles.saveButtonText}>Save Entry</Text>
           </TouchableOpacity>
           

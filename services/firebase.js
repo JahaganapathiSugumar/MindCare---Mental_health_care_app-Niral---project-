@@ -110,6 +110,42 @@ const toDateKey = (value = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+// Add this function to fetch activities
+export const getUserActivities = async (userId) => {
+  try {
+    const { db } = getFirebaseInstance();
+    const activitiesRef = collection(db, 'activities');
+    const q = query(activitiesRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+
+    const activities = [];
+    snapshot.forEach(doc => {
+      activities.push({ id: doc.id, ...doc.data() });
+    });
+    return activities;
+  } catch (error) {
+    console.error('Error fetching activities:', error);
+    return [];
+  }
+};
+
+// Add activity function
+export const addActivity = async (userId, activityData) => {
+  try {
+    const { db } = getFirebaseInstance();
+    const activitiesRef = collection(db, 'activities');
+    const docRef = await addDoc(activitiesRef, {
+      userId: userId,
+      ...activityData,
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding activity:', error);
+    return null;
+  }
+};
+
 const isSameDay = (first, second) => {
   const firstDate = toDateFromTimestamp(first);
   const secondDate = toDateFromTimestamp(second);
@@ -593,7 +629,7 @@ export const getYearlyActivityMap = async (userId) => {
         toDateFromTimestamp(data.timestamp) ||
         toDateFromTimestamp(data.createdAt) ||
         toDateFromTimestamp(data.updatedAt);
-      
+
       if (createdAt) {
         const dateKey = toDateKey(createdAt);
         activityMap[dateKey] = (activityMap[dateKey] || 0) + 1;
@@ -615,7 +651,7 @@ export const getYearlyActivityMap = async (userId) => {
       const fbMoods = query(moodsRef, where('userId', '==', userId), limit(limitCount));
       const snapMoods = await getDocs(fbMoods);
       processSnapshot(snapMoods);
-    } catch(e) {}
+    } catch (e) { }
   }
 
   try {
@@ -632,7 +668,7 @@ export const getYearlyActivityMap = async (userId) => {
       const fbChats = query(chatsRef, where('userId', '==', userId), limit(limitCount));
       const snapChats = await getDocs(fbChats);
       processSnapshot(snapChats);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   return activityMap;

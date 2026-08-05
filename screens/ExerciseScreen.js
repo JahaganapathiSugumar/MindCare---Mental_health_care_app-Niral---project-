@@ -10,7 +10,6 @@ import {
   SafeAreaView,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../context/ThemeContext';
@@ -23,6 +22,22 @@ import { ensureAuthInitialized, getAuth_ } from '../firebase';
 import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const { width } = Dimensions.get('window');
+
+// Light color scheme
+const COLORS = {
+  background: '#F0F4F8',
+  card: '#FFFFFF',
+  primary: '#4A90D9',
+  success: '#2ECC71',
+  warning: '#F39C12',
+  danger: '#E74C3C',
+  text: '#2C3E50',
+  textLight: '#7F8C8D',
+  border: '#E8EDF2',
+  shadow: 'rgba(0,0,0,0.06)',
+  purple: '#8E44AD',
+  pink: '#FF6B9D',
+};
 
 /**
  * Exercise Screen - Guided Breathing & Grounding Exercises
@@ -59,7 +74,7 @@ const ExerciseScreen = ({ navigation, route }) => {
       duration: 60,
       description: '4s inhale → 4s hold → 6s exhale',
       cycles: 5,
-      color: '#4A90E2',
+      color: COLORS.primary,
       emoji: '🌬️',
     },
     {
@@ -70,7 +85,7 @@ const ExerciseScreen = ({ navigation, route }) => {
       duration: 90,
       description: '4s inhale → 7s hold → 8s exhale',
       cycles: 4,
-      color: '#6BCB77',
+      color: COLORS.success,
       emoji: '🧘',
     },
   ];
@@ -200,37 +215,34 @@ const ExerciseScreen = ({ navigation, route }) => {
   // Render Menu Screen
   if (screen === 'menu') {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
         <TopBackButton fallbackRoute="Home" />
-        <ScrollView showsVerticalScrollIndicator={false}>
+        
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
           {/* Header */}
-          <View style={{ marginTop: 40 }} />
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Ionicons name="chevron-back" size={28} color={theme.text} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: theme.text }]}>
-              Wellness Exercises
-            </Text>
-            <View style={{ width: 28 }} />
+            <View>
+              <Text style={styles.headerTitle}>🧘 Wellness Exercises</Text>
+              <Text style={styles.headerSubtitle}>Calm your mind and body</Text>
+            </View>
           </View>
 
           {/* Current mood indicator */}
           {beforeMood && (
-            <View style={[styles.moodCard, { backgroundColor: theme.card }]}>
-              <Text style={[styles.moodLabel, { color: theme.mutedText }]}>
-                How you're feeling
-              </Text>
-              <Text style={[styles.moodValue, { color: theme.primary }]}>
+            <View style={styles.moodCard}>
+              <MaterialCommunityIcons name="emoticon-happy" size={20} color={COLORS.primary} />
+              <Text style={styles.moodLabel}>How you're feeling</Text>
+              <Text style={styles.moodValue}>
                 {beforeMood.charAt(0).toUpperCase() + beforeMood.slice(1)}
               </Text>
             </View>
           )}
 
           {/* Breathing exercises */}
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Breathing Exercises
-          </Text>
+          <Text style={styles.sectionTitle}>🌬️ Breathing Exercises</Text>
           {breathingPatterns.map((pattern) => (
             <TouchableOpacity
               key={pattern.id}
@@ -239,122 +251,76 @@ const ExerciseScreen = ({ navigation, route }) => {
                 setMaxCycles(pattern.cycles);
                 setScreen('breathing');
               }}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <LinearGradient
-                colors={isDark ? ['#1a1a1a', '#0f0f0f'] : ['#ffffff', '#f5f9fc']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[
-                  styles.exerciseCard,
-                  {
-                    borderColor: pattern.color,
-                    backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
-                  },
-                ]}
-              >
+              <View style={[styles.exerciseCard, { borderLeftColor: pattern.color }]}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardEmoji}>{pattern.emoji}</Text>
                   <View style={styles.cardInfo}>
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>
-                      {pattern.name}
-                    </Text>
-                    <Text style={[styles.cardLevel, { color: theme.mutedText }]}>
-                      {pattern.level}
-                    </Text>
+                    <Text style={styles.cardTitle}>{pattern.name}</Text>
+                    <View style={styles.cardLevelBadge}>
+                      <Text style={styles.cardLevel}>{pattern.level}</Text>
+                    </View>
                   </View>
+                  <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.textLight} />
                 </View>
-                <Text style={[styles.cardDescription, { color: theme.mutedText }]}>
-                  {pattern.description}
-                </Text>
+                <Text style={styles.cardDescription}>{pattern.description}</Text>
                 <View style={styles.cardMeta}>
                   <View style={styles.metaItem}>
-                    <Ionicons name="timer" size={16} color={pattern.color} />
-                    <Text style={[styles.metaText, { color: theme.text }]}>
+                    <MaterialCommunityIcons name="clock-outline" size={16} color={pattern.color} />
+                    <Text style={[styles.metaText, { color: COLORS.textLight }]}>
                       ~{pattern.duration}s
                     </Text>
                   </View>
                   <View style={styles.metaItem}>
-                    <Ionicons name="repeat" size={16} color={pattern.color} />
-                    <Text style={[styles.metaText, { color: theme.text }]}>
+                    <MaterialCommunityIcons name="repeat" size={16} color={pattern.color} />
+                    <Text style={[styles.metaText, { color: COLORS.textLight }]}>
                       {pattern.cycles} cycles
                     </Text>
                   </View>
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           ))}
 
           {/* Grounding exercise */}
-          <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 24 }]}>
-            Grounding Techniques
+          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+            🌍 Grounding Techniques
           </Text>
           <TouchableOpacity
             onPress={() => setScreen('grounding')}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
-            <LinearGradient
-              colors={isDark ? ['#1a1a1a', '#0f0f0f'] : ['#ffffff', '#f5f9fc']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[
-                styles.exerciseCard,
-                {
-                  borderColor: '#FF6B9D',
-                  backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
-                },
-              ]}
-            >
+            <View style={[styles.exerciseCard, { borderLeftColor: COLORS.pink }]}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardEmoji}>🌍</Text>
                 <View style={styles.cardInfo}>
-                  <Text style={[styles.cardTitle, { color: theme.text }]}>
-                    5-4-3-2-1 Grounding
-                  </Text>
-                  <Text style={[styles.cardLevel, { color: theme.mutedText }]}>
-                    Sensory Focus
-                  </Text>
+                  <Text style={styles.cardTitle}>5-4-3-2-1 Grounding</Text>
+                  <View style={[styles.cardLevelBadge, { backgroundColor: `${COLORS.pink}15` }]}>
+                    <Text style={[styles.cardLevel, { color: COLORS.pink }]}>Sensory Focus</Text>
+                  </View>
                 </View>
+                <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.textLight} />
               </View>
-              <Text style={[styles.cardDescription, { color: theme.mutedText }]}>
-                Reconnect with your senses
-              </Text>
+              <Text style={styles.cardDescription}>Reconnect with your senses</Text>
               <View style={styles.cardMeta}>
                 <View style={styles.metaItem}>
-                  <Ionicons name="eye" size={16} color="#FF6B9D" />
-                  <Text style={[styles.metaText, { color: theme.text }]}>
-                    5 senses
-                  </Text>
+                  <MaterialCommunityIcons name="eye" size={16} color={COLORS.pink} />
+                  <Text style={[styles.metaText, { color: COLORS.textLight }]}>5 senses</Text>
                 </View>
                 <View style={styles.metaItem}>
-                  <Ionicons name="infinite" size={16} color="#FF6B9D" />
-                  <Text style={[styles.metaText, { color: theme.text }]}>
-                    Self-paced
-                  </Text>
+                  <MaterialCommunityIcons name="infinity" size={16} color={COLORS.pink} />
+                  <Text style={[styles.metaText, { color: COLORS.textLight }]}>Self-paced</Text>
                 </View>
               </View>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
 
           {/* Info section */}
-          <View
-            style={[
-              styles.infoBox,
-              {
-                backgroundColor: theme.primary,
-                opacity: 0.1,
-              },
-            ]}
-          >
-            <Ionicons
-              name="information-circle"
-              size={20}
-              color={theme.primary}
-              style={{ marginRight: 10 }}
-            />
-            <Text style={[styles.infoText, { color: theme.text }]}>
-              These exercises are designed to reduce stress and anxiety. Choose
-              whichever feels right for you.
+          <View style={styles.infoBox}>
+            <MaterialCommunityIcons name="information" size={20} color={COLORS.primary} />
+            <Text style={styles.infoText}>
+              These exercises are designed to reduce stress and anxiety. Choose whichever feels right for you.
             </Text>
           </View>
         </ScrollView>
@@ -365,16 +331,17 @@ const ExerciseScreen = ({ navigation, route }) => {
   // Render Breathing Screen
   if (screen === 'breathing') {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
         <Animated.View style={[{ flex: 1, opacity: fadeAnim }]}>
           <View style={styles.breathingHeader}>
-            <TouchableOpacity onPress={handleBackToMenu}>
-              <Ionicons name="chevron-back" size={28} color={theme.text} />
+            <TouchableOpacity 
+              onPress={handleBackToMenu}
+              style={styles.backButton}
+            >
+              <MaterialCommunityIcons name="chevron-left" size={28} color={COLORS.text} />
             </TouchableOpacity>
-            <Text style={[styles.breathingTitle, { color: theme.text, marginTop: 40 }]}>
-              Breathing Exercise
-            </Text>
-            <View style={{ width: 28 }} />
+            <Text style={styles.breathingTitle}>Breathing Exercise</Text>
+            <View style={{ width: 40 }} />
           </View>
 
           <BreathingCircle
@@ -390,20 +357,23 @@ const ExerciseScreen = ({ navigation, route }) => {
           />
 
           <View style={styles.breathingControls}>
-            <CustomButton
-              title={isBreathing ? 'Stop' : 'Start'}
+            <TouchableOpacity
+              style={[
+                styles.breathingButton,
+                { backgroundColor: isBreathing ? COLORS.danger : COLORS.primary }
+              ]}
               onPress={handleBreathingToggle}
-              variant={isBreathing ? 'secondary' : 'primary'}
-              style={{ minWidth: 120 }}
-            />
+            >
+              <Text style={styles.breathingButtonText}>
+                {isBreathing ? 'Stop' : 'Start'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Mood selector after exercise */}
           {cycleCount >= maxCycles && !isBreathing && (
             <View style={styles.moodSelector}>
-              <Text style={[styles.moodQuestion, { color: theme.text }]}>
-                How do you feel now?
-              </Text>
+              <Text style={styles.moodQuestion}>How do you feel now?</Text>
               <View style={styles.moodOptions}>
                 {['better', 'same', 'worse'].map((option) => (
                   <TouchableOpacity
@@ -415,14 +385,17 @@ const ExerciseScreen = ({ navigation, route }) => {
                     style={[
                       styles.moodOption,
                       {
-                        borderColor:
-                          afterMood === option ? theme.primary : theme.border,
+                        borderColor: afterMood === option ? COLORS.primary : COLORS.border,
                         borderWidth: afterMood === option ? 2 : 1,
-                      },
+                        backgroundColor: afterMood === option ? `${COLORS.primary}10` : COLORS.card,
+                      }
                     ]}
                   >
-                    <Text style={[styles.moodOptionText, { color: theme.text }]}>
-                      {option === 'better' ? '👍' : option === 'same' ? '➡️' : '👎'}
+                    <Text style={styles.moodOptionText}>
+                      {option === 'better' ? '😊' : option === 'same' ? '😐' : '😢'}
+                    </Text>
+                    <Text style={styles.moodOptionLabel}>
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -437,9 +410,9 @@ const ExerciseScreen = ({ navigation, route }) => {
   // Render Grounding Screen
   if (screen === 'grounding') {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-        <Animated.View style={{ marginTop: 40, flex: 1, opacity: fadeAnim } }>
-          <GroundingSteps onComplete={handleGroundingComplete} isDark={isDark} />
+      <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
+        <Animated.View style={{ marginTop: 10, flex: 1, opacity: fadeAnim }}>
+          <GroundingSteps onComplete={handleGroundingComplete} isDark={false} />
         </Animated.View>
       </SafeAreaView>
     );
@@ -448,41 +421,30 @@ const ExerciseScreen = ({ navigation, route }) => {
   // Render Complete Screen
   if (screen === 'complete') {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
         <Animated.View
           style={[styles.completeContainer, { opacity: fadeAnim }]}
         >
           <View style={styles.completeContent}>
             <Text style={styles.completeEmoji}>🎉</Text>
-            <Text style={[styles.completeTitle, { color: theme.text }]}>
-              Great Job!
-            </Text>
-            <Text style={[styles.completeText, { color: theme.mutedText }]}>
+            <Text style={styles.completeTitle}>Great Job!</Text>
+            <Text style={styles.completeText}>
               You completed your exercise session.
             </Text>
 
-            <View
-              style={[
-                styles.statBox,
-                {
-                  backgroundColor: theme.primary,
-                  opacity: 0.1,
-                },
-              ]}
-            >
-              <Text style={[styles.statLabel, { color: theme.mutedText }]}>
-                Session Summary
-              </Text>
-              <Text style={[styles.statValue, { color: theme.primary }]}>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Session Summary</Text>
+              <Text style={styles.statValue}>
                 {cycleCount > 0 ? `${cycleCount} cycles completed` : 'Exercise completed'}
               </Text>
             </View>
 
-            <CustomButton
-              title="Back to Menu"
+            <TouchableOpacity
+              style={styles.completeButton}
               onPress={handleBackToMenu}
-              style={{ marginTop: 20 }}
-            />
+            >
+              <Text style={styles.completeButtonText}>Back to Menu</Text>
+            </TouchableOpacity>
           </View>
         </Animated.View>
       </SafeAreaView>
@@ -493,55 +455,75 @@ const ExerciseScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    marginBottom: 24,
+    paddingTop: 10,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: '700',
+    color: COLORS.text,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    marginTop: 2,
   },
   moodCard: {
-    marginHorizontal: 16,
-    marginBottom: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   moodLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
+    fontSize: 13,
+    color: COLORS.textLight,
+    marginLeft: 8,
+    flex: 1,
   },
   moodValue: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    marginHorizontal: 16,
+    fontWeight: '600',
+    color: COLORS.text,
     marginBottom: 12,
   },
   exerciseCard: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    backgroundColor: COLORS.card,
     borderRadius: 16,
-    borderWidth: 2,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   cardEmoji: {
-    fontSize: 32,
+    fontSize: 28,
     marginRight: 12,
   },
   cardInfo: {
@@ -549,16 +531,25 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 2,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  cardLevelBadge: {
+    backgroundColor: `${COLORS.primary}10`,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 4,
   },
   cardLevel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
+    color: COLORS.primary,
   },
   cardDescription: {
     fontSize: 13,
-    fontWeight: '500',
+    color: COLORS.textLight,
     marginBottom: 10,
   },
   cardMeta: {
@@ -572,47 +563,66 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   infoBox: {
-    marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 40,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    backgroundColor: `${COLORS.primary}08`,
     borderRadius: 12,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 16,
+    gap: 10,
   },
   infoText: {
     flex: 1,
     fontSize: 13,
-    fontWeight: '500',
+    color: COLORS.textLight,
     lineHeight: 18,
   },
   breathingHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   breathingTitle: {
     fontSize: 18,
     fontWeight: '700',
+    color: COLORS.text,
   },
   breathingControls: {
     alignItems: 'center',
     paddingBottom: 40,
   },
+  breathingButton: {
+    paddingHorizontal: 40,
+    paddingVertical: 14,
+    borderRadius: 30,
+    minWidth: 140,
+    alignItems: 'center',
+  },
+  breathingButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
   moodSelector: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 40,
   },
   moodQuestion: {
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 16,
     textAlign: 'center',
   },
   moodOptions: {
@@ -621,15 +631,22 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   moodOption: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
   },
   moodOptionText: {
     fontSize: 28,
+  },
+  moodOptionLabel: {
+    fontSize: 10,
+    color: COLORS.textLight,
+    marginTop: 2,
   },
   completeContainer: {
     flex: 1,
@@ -647,28 +664,44 @@ const styles = StyleSheet.create({
   completeTitle: {
     fontSize: 28,
     fontWeight: '700',
+    color: COLORS.text,
     marginBottom: 10,
   },
   completeText: {
     fontSize: 15,
-    fontWeight: '500',
+    color: COLORS.textLight,
     marginBottom: 30,
     textAlign: 'center',
   },
   statBox: {
-    paddingHorizontal: 20,
+    backgroundColor: `${COLORS.primary}10`,
+    paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+    width: '100%',
   },
   statLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    color: COLORS.textLight,
     marginBottom: 6,
   },
   statValue: {
     fontSize: 16,
     fontWeight: '700',
+    color: COLORS.primary,
+  },
+  completeButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 30,
+    marginTop: 20,
+  },
+  completeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

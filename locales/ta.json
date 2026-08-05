@@ -33,7 +33,13 @@
     "quickActions": "விரைவு செயல்கள்",
     "startChat": "அரட்டை தொடங்கு",
     "moodInsights": "மனநிலை பார்வைகள்",
-    "dailyTip": "இன்றைய குறிப்பு"
+    "dailyTip": "இன்றைய குறிப்பு",
+    "voiceAi": "குரல் AI",
+    "companion": "துணை",
+    "wellness": "நல்வாழ்வு",
+    "exercises": "பயிற்சிகள்",
+    "moodOverview": "மனநிலை மேலோட்டம்",
+    "details": "விவரங்கள்"
   },
   "chat": {
     "title": "AI ஆதரவு உதவியாளர்",
@@ -45,7 +51,8 @@
     "title": "AI மனநிலை பார்வைகள்",
     "subtitle": "AI அரட்டையிலிருந்து மட்டுமே மனநிலை கண்டறியப்படும்.",
     "startAIChat": "AI அரட்டை தொடங்கு"
-  },  "exercise": {
+  },
+  "exercise": {
     "title": "wellness வ்யாயாமங்கள்",
     "subtitle": "மன அழுத்தம் மற்றும் கவலையைக் குறைக்க வழிகாட்டப்பட்ட பயிற்சிகள்",
     "breathingExercises": "சுவாச பயிற்சிகள்",
@@ -60,12 +67,28 @@
     "inhale": "உள்ளே உச்சவாயு",
     "hold": "வைத்திருக்கவும்",
     "exhale": "வெளியே உச்சவாயு"
-  },  "profile": {
+  },
+  "profile": {
     "profileInfo": "சுயவிவர தகவல்",
     "editProfile": "சுயவிவரத்தை திருத்து",
     "notifications": "அறிவிப்புகள்",
     "logout": "வெளியேறு",
-    "changePhoto": "புகைப்படத்தை மாற்று"
+    "changePhoto": "புகைப்படத்தை மாற்று",
+    "personalizePrompt": "உங்கள் AI ஐத் தனிப்பயனாக்க பென்சிலைத் தட்டவும்.",
+    "safetyCircle": "💙 பாதுகாப்பு வட்டம்",
+    "addTrustedContact": "நீங்கள் நம்பும் ஒருவரைச் சேர்க்கவும்",
+    "addTrustedContactSubtext": "கடினமான தருணங்களில் தொடர்பு கொள்ள ஒரு நபர்",
+    "languages": "🌐 மொழிகள்",
+    "settings": "⚙️ அமைப்புகள்",
+    "darkMode": "இருண்ட பயன்முறை",
+    "darkModeSubtitle": "இரவு நேரத்திற்கு அமைதியானது",
+    "supportiveReminders": "ஆதரவான நினைவூட்டல்கள்",
+    "supportiveRemindersSubtitle": "தினசரி செக்-இன்கள் மற்றும் ஊக்கம்",
+    "publicLeaderboard": "பொது முன்னிலைப்பலகை",
+    "publicLeaderboardSubtitle": "உலகளாவிய தரவரிசையில் சேரவும்",
+    "accountControls": "கணக்கு மற்றும் தரவு கட்டுப்பாடுகள்",
+    "accountControlsSubtitle": "தனியுரிமை, பதிவிறக்கங்கள் மற்றும் நீக்கம்",
+    "logoutBtn": "வெளியேறு"
   },
   "onboarding": {
     "skip": "தவிர்",
@@ -120,5 +143,26 @@
     "edit": "திருத்தவும்",
     "saved": "சேமிக்கப்பட்டது",
     "remove": "நீக்கவும்"
+  },
+  "dashboard": {
+    "goodMorning": "காலை வணக்கம்",
+    "goodAfternoon": "மதிய வணக்கம்",
+    "goodEvening": "மாலை வணக்கம்",
+    "dayStreak": "நாள் தொடர்ச்சி",
+    "level": "நிலை",
+    "xp": "XP",
+    "dailyWellness": "தினசரி நல்வாழ்வு",
+    "mood": "மனநிலை",
+    "mind": "மனம்",
+    "body": "உடல்",
+    "recentActivity": "சமீபத்திய செயல்பாடு",
+    "achievements": "சாதனைகள்",
+    "viewUnlocked": "திறக்கப்பட்டதைக் காண்க",
+    "leaderboard": "முன்னிலைப்பலகை",
+    "globalRank": "உலகளாவிய தரம்",
+    "heatmap": "வெப்ப வரைபடம்",
+    "activityLog": "செயல்பாட்டு பதிவு",
+    "analytics": "பகுப்பாய்வு",
+    "moodReports": "மனநிலை & அறிக்கைகள்"
   }
 }

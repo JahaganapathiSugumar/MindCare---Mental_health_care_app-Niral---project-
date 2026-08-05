@@ -1,5 +1,6 @@
 import { collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { getFirebaseInstance } from '../firebase';
+import { awardXP, updateAchievementProgress } from './gamificationService';
 
 /**
  * Save exercise activity to Firestore
@@ -32,6 +33,14 @@ export const saveExerciseActivity = async (userId, exerciseData) => {
     };
 
     const docRef = await addDoc(collection(db, 'activities'), activityData);
+    
+    // Award XP
+    if (exerciseData.type === 'breathing') {
+      await awardXP('GUIDED_BREATHING');
+    } else if (exerciseData.type === 'grounding') {
+      await awardXP('MEDITATION');
+      await updateAchievementProgress('MEDITATION_EXPERT');
+    }
     
     console.log('[ActivityService] Exercise saved:', docRef.id);
     return {

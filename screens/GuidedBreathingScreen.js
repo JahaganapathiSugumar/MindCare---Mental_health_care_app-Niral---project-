@@ -1,13 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Platform, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import PremiumBreathingCircle from '../components/PremiumBreathingCircle';
 import { saveExerciseActivity } from '../services/activityService';
 import { ensureAuthInitialized, getAuth_ } from '../firebase';
 import TopBackButton from '../components/ui/Premium/TopBackButton';
+
+// Light color scheme
+const COLORS = {
+  background: '#F0F4F8',
+  card: '#FFFFFF',
+  primary: '#4A90D9',
+  success: '#2ECC71',
+  warning: '#F39C12',
+  danger: '#E74C3C',
+  text: '#2C3E50',
+  textLight: '#7F8C8D',
+  border: '#E8EDF2',
+  shadow: 'rgba(0,0,0,0.06)',
+  purple: '#8E44AD',
+  pink: '#FF6B9D',
+};
 
 const EXERCISES = [
   { id: 'box', title: 'Box Breathing', subtitle: '4-4-4-4 Pattern', durationStr: '2 min', difficulty: 'Beginner', benefits: 'Focus & Calm', pattern: [4, 4, 4, 4], targetCycles: 8, color: '#4FC3F7', icon: 'square-outline' },
@@ -18,15 +33,11 @@ const EXERCISES = [
 ];
 
 export default function GuidedBreathingScreen({ navigation }) {
-  const [view, setView] = useState('home'); // 'home' | 'exercise' | 'complete'
+  const [view, setView] = useState('home');
   const [selectedExercise, setSelectedExercise] = useState(null);
-  
-  // Exercise State
   const [isActive, setIsActive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [cyclesCompleted, setCyclesCompleted] = useState(0);
-
-  // Background Audio UI state (Mock for now since we lack audio files)
   const [selectedAudio, setSelectedAudio] = useState('None');
 
   const handleStartExercise = (exercise) => {
@@ -86,49 +97,62 @@ export default function GuidedBreathingScreen({ navigation }) {
     }
   };
 
+  const handleBackToHome = () => {
+    setView('home');
+    setSelectedExercise(null);
+    setCyclesCompleted(0);
+    setIsActive(false);
+    setIsPaused(false);
+  };
+
   const renderHome = () => (
     <Animated.ScrollView entering={FadeIn} exiting={FadeOut} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      {/* Hero Mascot */}
-      <View style={styles.heroSection}>
-        <View style={styles.mascotContainer}>
-          <LinearGradient colors={['rgba(96, 165, 250, 0.2)', 'rgba(96, 165, 250, 0.0)']} style={styles.mascotGlow} />
-          <MaterialCommunityIcons name="robot-happy-outline" size={72} color="#60A5FA" />
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={{height:80}}></Text>
+          <Text style={styles.headerTitle}>🌬️ Guided Breathing</Text>
+          <Text style={styles.headerSubtitle}>Take a deep breath. Let's slow down together.</Text>
         </View>
-        <Text style={styles.heroTitle}>Guided Breathing</Text>
-        <Text style={styles.heroSubtitle}>"Take a deep breath. Let's slow down together."</Text>
       </View>
 
       {/* Exercise Cards */}
       <View style={styles.cardsGrid}>
         {EXERCISES.map((ex, index) => (
           <Animated.View key={ex.id} entering={FadeInDown.delay(index * 100).duration(500)}>
-            <TouchableOpacity style={styles.card} onPress={() => handleStartExercise(ex)} activeOpacity={0.8}>
-              <LinearGradient colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.01)']} style={styles.cardGradient}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIconWrap, { backgroundColor: `${ex.color}20` }]}>
-                    <MaterialCommunityIcons name={ex.icon} size={28} color={ex.color} />
-                  </View>
-                  <View style={styles.cardTitleWrap}>
-                    <Text style={styles.cardTitle}>{ex.title}</Text>
-                    <Text style={styles.cardSubtitle}>{ex.subtitle}</Text>
+            <TouchableOpacity 
+              style={[styles.card, { borderLeftColor: ex.color }]} 
+              onPress={() => handleStartExercise(ex)} 
+              activeOpacity={0.8}
+            >
+              <View style={styles.cardHeader}>
+                <View style={[styles.cardIconWrap, { backgroundColor: `${ex.color}20` }]}>
+                  <MaterialCommunityIcons name={ex.icon} size={24} color={ex.color} />
+                </View>
+                <View style={styles.cardTitleWrap}>
+                  <Text style={styles.cardTitle}>{ex.title}</Text>
+                  <Text style={styles.cardSubtitle}>{ex.subtitle}</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.textLight} />
+              </View>
+              
+              <View style={styles.cardStatsRow}>
+                <View style={styles.statItem}>
+                  <MaterialCommunityIcons name="clock-outline" size={14} color={COLORS.textLight} />
+                  <Text style={styles.statText}>{ex.durationStr}</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <View style={[styles.difficultyBadge, { backgroundColor: ex.difficulty === 'Beginner' ? `${COLORS.success}15` : ex.difficulty === 'Intermediate' ? `${COLORS.warning}15` : `${COLORS.danger}15` }]}>
+                    <Text style={[styles.difficultyText, { color: ex.difficulty === 'Beginner' ? COLORS.success : ex.difficulty === 'Intermediate' ? COLORS.warning : COLORS.danger }]}>
+                      {ex.difficulty}
+                    </Text>
                   </View>
                 </View>
-                
-                <View style={styles.cardStatsRow}>
-                  <View style={styles.statItem}>
-                    <MaterialCommunityIcons name="clock-outline" size={14} color="#94A3B8" />
-                    <Text style={styles.statText}>{ex.durationStr}</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <MaterialCommunityIcons name="signal" size={14} color="#94A3B8" />
-                    <Text style={styles.statText}>{ex.difficulty}</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <MaterialCommunityIcons name="star-outline" size={14} color="#94A3B8" />
-                    <Text style={styles.statText}>{ex.benefits}</Text>
-                  </View>
+                <View style={styles.statItem}>
+                  <MaterialCommunityIcons name="star-outline" size={14} color={COLORS.textLight} />
+                  <Text style={styles.statText}>{ex.benefits}</Text>
                 </View>
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           </Animated.View>
         ))}
@@ -139,14 +163,13 @@ export default function GuidedBreathingScreen({ navigation }) {
   const renderExercise = () => (
     <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.exerciseContainer}>
       <View style={styles.exerciseHeader}>
-        <TouchableOpacity onPress={() => setView('home')} style={styles.closeButton}>
-          <MaterialCommunityIcons name="close" size={28} color="#E2E8F0" />
+        <TouchableOpacity onPress={handleBackToHome} style={styles.closeButton}>
+          <MaterialCommunityIcons name="close" size={28} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.exerciseTitle}>{selectedExercise?.title}</Text>
         <View style={{ width: 28 }} />
       </View>
 
-      {/* Progress Ring / Info */}
       <View style={styles.progressContainer}>
         <Text style={styles.progressText}>Cycle {cyclesCompleted} of {selectedExercise?.targetCycles}</Text>
         <View style={styles.progressBarBg}>
@@ -154,7 +177,6 @@ export default function GuidedBreathingScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Breathing Circle Component */}
       <View style={styles.circleWrapper}>
         <PremiumBreathingCircle 
           pattern={selectedExercise?.pattern}
@@ -165,7 +187,6 @@ export default function GuidedBreathingScreen({ navigation }) {
         />
       </View>
 
-      {/* Audio Selection (Mock UI) */}
       <View style={styles.audioSelection}>
         <Text style={styles.audioLabel}>Background Sound</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.audioScroll}>
@@ -181,18 +202,17 @@ export default function GuidedBreathingScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {/* Bottom Controls */}
       <View style={styles.controlsRow}>
         <TouchableOpacity style={styles.endButton} onPress={handleEndSession}>
           <Text style={styles.endButtonText}>End</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.playButton, { backgroundColor: selectedExercise?.color }]} onPress={togglePlayback}>
-          <MaterialCommunityIcons name={!isActive ? 'play' : (isPaused ? 'play' : 'pause')} size={36} color="#0B132B" />
+          <MaterialCommunityIcons name={!isActive ? 'play' : (isPaused ? 'play' : 'pause')} size={36} color="#FFFFFF" />
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.restartButton} onPress={() => { setCyclesCompleted(0); setIsActive(true); setIsPaused(false); }}>
-          <MaterialCommunityIcons name="restart" size={28} color="#E2E8F0" />
+          <MaterialCommunityIcons name="restart" size={24} color={COLORS.textLight} />
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -204,57 +224,49 @@ export default function GuidedBreathingScreen({ navigation }) {
     return (
       <Animated.View entering={FadeIn} style={styles.completeContainer}>
         <View style={styles.completeHero}>
-          <MaterialCommunityIcons name="party-popper" size={64} color="#69F0AE" />
-          <Text style={styles.completeTitle}>Excellent Work</Text>
+          <View style={styles.completeIconWrap}>
+            <MaterialCommunityIcons name="party-popper" size={56} color={COLORS.primary} />
+          </View>
+          <Text style={styles.completeTitle}>Excellent Work!</Text>
           <Text style={styles.completeSubtitle}>You completed today's breathing exercise.</Text>
         </View>
 
         <View style={styles.statsCard}>
-          <LinearGradient colors={['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']} style={styles.statsGradient}>
-            <View style={styles.statRow}>
+          <View style={styles.statRow}>
+            <View style={styles.statItemWrapper}>
               <Text style={styles.statLabel}>Duration</Text>
-              <Text style={styles.statValue}>{timeSpent} seconds</Text>
+              <Text style={styles.statValue}>{timeSpent}s</Text>
             </View>
             <View style={styles.statDivider} />
-            <View style={styles.statRow}>
+            <View style={styles.statItemWrapper}>
               <Text style={styles.statLabel}>Stress Relief</Text>
-              <Text style={styles.statValue}>High</Text>
+              <Text style={[styles.statValue, { color: COLORS.success }]}>High</Text>
             </View>
             <View style={styles.statDivider} />
-            <View style={styles.statRow}>
-              <Text style={styles.statLabel}>Cycles Completed</Text>
+            <View style={styles.statItemWrapper}>
+              <Text style={styles.statLabel}>Cycles</Text>
               <Text style={styles.statValue}>{cyclesCompleted}</Text>
             </View>
-          </LinearGradient>
+          </View>
         </View>
 
         <View style={styles.reflectionCard}>
-          <MaterialCommunityIcons name="robot-outline" size={24} color="#60A5FA" style={{ marginBottom: 8 }} />
+          <MaterialCommunityIcons name="robot-outline" size={24} color={COLORS.primary} />
           <Text style={styles.reflectionText}>
-            "You slowed your breathing and completed {cyclesCompleted} cycles. Regular breathing practice helps reduce stress and improves focus over time."
+            You slowed your breathing and completed {cyclesCompleted} cycles. Regular breathing practice helps reduce stress and improves focus over time.
           </Text>
         </View>
 
-        <View style={styles.completeActions}>
-          <TouchableOpacity style={styles.saveButton} onPress={handleSaveAndExit}>
-            <Text style={styles.saveButtonText}>Save Session & Home</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.saveButton} onPress={handleSaveAndExit}>
+          <Text style={styles.saveButtonText}>Save Session & Home</Text>
+        </TouchableOpacity>
       </Animated.View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-        <TopBackButton fallbackRoute="Home" />
-      {view === 'home' && (
-        <View style={styles.topBar}>
-          <TouchableOpacity style={styles.backNav} onPress={() => navigation.goBack()}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color="#E2E8F0" />
-            <Text style={styles.backNavText}>Back</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+    <SafeAreaView style={[styles.container, { backgroundColor: COLORS.background }]}>
+      <TopBackButton fallbackRoute="Home" />
       
       {view === 'home' && renderHome()}
       {view === 'exercise' && renderExercise()}
@@ -266,110 +278,91 @@ export default function GuidedBreathingScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B132B',
-  },
-  topBar: {
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 40 : 10,
-    paddingBottom: 10,
-  },
-  backNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backNavText: {
-    color: '#E2E8F0',
-    fontSize: 16,
-    marginLeft: 4,
+    backgroundColor: COLORS.background,
   },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  heroSection: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 40,
+  header: {
+    marginBottom: 24,
+    paddingTop: 10,
   },
-  mascotContainer: {
-    width: 120,
-    height: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.text,
   },
-  mascotGlow: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-  },
-  heroTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#F8FAFC',
-    marginBottom: 8,
-  },
-  heroSubtitle: {
-    fontSize: 16,
-    color: '#94A3B8',
-    textAlign: 'center',
+  headerSubtitle: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    marginTop: 2,
     fontStyle: 'italic',
   },
   cardsGrid: {
-    gap: 16,
+    gap: 12,
   },
   card: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  cardGradient: {
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    borderLeftWidth: 4,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   cardIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   cardTitleWrap: {
     flex: 1,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#F8FAFC',
-    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
   },
   cardSubtitle: {
-    fontSize: 14,
-    color: '#94A3B8',
+    fontSize: 13,
+    color: COLORS.textLight,
   },
   cardStatsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    padding: 12,
-    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: `${COLORS.background}50`,
+    padding: 10,
+    borderRadius: 10,
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   statText: {
-    color: '#CBD5E1',
+    color: COLORS.textLight,
     fontSize: 12,
-    marginLeft: 6,
+  },
+  difficultyBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  difficultyText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   
   // Exercise View
@@ -377,7 +370,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     padding: 20,
-    paddingTop: Platform.OS === 'android' ? 40 : 20,
   },
   exerciseHeader: {
     flexDirection: 'row',
@@ -388,17 +380,17 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   exerciseTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: COLORS.text,
   },
   progressContainer: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 16,
   },
   progressText: {
-    color: '#94A3B8',
-    fontSize: 14,
+    color: COLORS.textLight,
+    fontSize: 13,
     marginBottom: 8,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -407,7 +399,7 @@ const styles = StyleSheet.create({
   progressBarBg: {
     width: 200,
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: `${COLORS.textLight}20`,
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -421,151 +413,170 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   audioSelection: {
-    marginBottom: 30,
+    marginBottom: 20,
   },
   audioLabel: {
-    color: '#94A3B8',
+    color: COLORS.textLight,
     fontSize: 13,
-    marginBottom: 10,
+    marginBottom: 8,
     marginLeft: 4,
+    fontWeight: '500',
   },
   audioScroll: {
-    gap: 10,
+    gap: 8,
   },
   audioChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginRight: 10,
+    backgroundColor: COLORS.card,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   audioChipText: {
-    color: '#CBD5E1',
-    fontSize: 14,
+    color: COLORS.textLight,
+    fontSize: 13,
+    fontWeight: '500',
   },
   audioChipTextActive: {
-    color: '#0B132B',
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   controlsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
     paddingBottom: 20,
   },
   endButton: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: `${COLORS.danger}10`,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: `${COLORS.danger}30`,
   },
   endButtonText: {
-    color: '#EF4444',
-    fontSize: 16,
+    color: COLORS.danger,
+    fontSize: 14,
     fontWeight: '600',
   },
   playButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 15,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
   restartButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.card,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   
   // Complete View
   completeContainer: {
     flex: 1,
     padding: 24,
+    paddingTop: 20,
     justifyContent: 'center',
   },
   completeHero: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
+  },
+  completeIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: `${COLORS.primary}15`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   completeTitle: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#F8FAFC',
-    marginTop: 20,
-    marginBottom: 8,
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 6,
   },
   completeSubtitle: {
-    fontSize: 16,
-    color: '#94A3B8',
+    fontSize: 15,
+    color: COLORS.textLight,
     textAlign: 'center',
   },
   statsCard: {
-    borderRadius: 24,
-    overflow: 'hidden',
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 24,
-  },
-  statsGradient: {
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   statRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
   },
+  statItemWrapper: {
+    alignItems: 'center',
+    flex: 1,
+  },
   statLabel: {
-    color: '#94A3B8',
-    fontSize: 16,
+    color: COLORS.textLight,
+    fontSize: 12,
+    fontWeight: '500',
   },
   statValue: {
-    color: '#F8FAFC',
+    color: COLORS.text,
     fontSize: 18,
     fontWeight: '700',
+    marginTop: 4,
   },
   statDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginVertical: 16,
+    width: 1,
+    height: 40,
+    backgroundColor: COLORS.border,
   },
   reflectionCard: {
-    backgroundColor: 'rgba(96, 165, 250, 0.1)',
-    padding: 20,
-    borderRadius: 20,
+    backgroundColor: `${COLORS.primary}08`,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.2)',
-    marginBottom: 40,
+    borderColor: `${COLORS.primary}15`,
+    marginBottom: 32,
+    gap: 8,
   },
   reflectionText: {
-    color: '#E2E8F0',
-    fontSize: 15,
-    lineHeight: 24,
+    color: COLORS.textLight,
+    fontSize: 14,
+    lineHeight: 22,
     fontStyle: 'italic',
   },
-  completeActions: {
-    marginTop: 'auto',
-    marginBottom: 20,
-  },
   saveButton: {
-    backgroundColor: '#60A5FA',
-    paddingVertical: 18,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
   },
   saveButtonText: {
-    color: '#0B132B',
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
-  }
+    fontWeight: '600',
+  },
 });

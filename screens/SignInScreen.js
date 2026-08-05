@@ -16,6 +16,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirebaseInstance, ensureAuthInitialized } from '../firebase';
 import CustomInput from '../components/CustomInput';
+import { initializeAchievements, updateAchievement } from '../services/gamificationService';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 import CustomButton from '../components/CustomButton';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import { validateSignIn } from '../utils/validation';
@@ -190,6 +192,14 @@ const SignInScreen = ({ navigation }) => {
       );
 
       console.log('[SignIn] User signed in successfully');
+      
+      const user = auth.currentUser;
+      if (user) {
+        // Initialize achievements if not exist
+        await initializeAchievements(user.uid);
+        // Update first login achievement
+        await updateAchievement(user.uid, 'first_login');
+      }
 
       // Reset form
       setEmail('');

@@ -33,7 +33,13 @@
     "quickActions": "വേഗ പ്രവർത്തനങ്ങൾ",
     "startChat": "ചാറ്റ് ആരംഭിക്കുക",
     "moodInsights": "മൂഡ് ഇൻസൈറ്റുകൾ",
-    "dailyTip": "ദിനസൂചന"
+    "dailyTip": "ദിനസൂചന",
+    "voiceAi": "വോയ്സ് AI",
+    "companion": "സഹയാത്രികൻ",
+    "wellness": "ക്ഷേമം",
+    "exercises": "വ്യായാമങ്ങൾ",
+    "moodOverview": "മനസ്സിന്റെ അവലോകനം",
+    "details": "വിശദാംശങ്ങൾ"
   },
   "chat": {
     "title": "AI പിന്തുണ സഹായി",
@@ -45,7 +51,8 @@
     "title": "AI മൂഡ് ഇൻസൈറ്റുകൾ",
     "subtitle": "മൂഡ് AI ചാറ്റ് സന്ദേശങ്ങളിൽ നിന്നാണ് കണ്ടെത്തുന്നത്.",
     "startAIChat": "AI ചാറ്റ് ആരംഭിക്കുക"
-  },  "exercise": {
+  },
+  "exercise": {
     "title": "സുസ്ഥതാ വ്യായാമങ്ങൾ",
     "subtitle": "സമ്മർദ്ദവും ഉത്കണ്ഠയും കുറയ്ക്കാനുള്ള നിർദ്ദേശിത വ്യായാമങ്ങൾ",
     "breathingExercises": "ശ്വാസ വ്യായാമങ്ങൾ",
@@ -60,12 +67,28 @@
     "inhale": "ശ്വാസം എടുക്കുക",
     "hold": "നിര്‍ത്തിരിക്കുക",
     "exhale": "ശ്വാസം പുറത്തിടുക"
-  },  "profile": {
+  },
+  "profile": {
     "profileInfo": "പ്രൊഫൈൽ വിവരം",
     "editProfile": "പ്രൊഫൈൽ തിരുത്തുക",
     "notifications": "അറിയിപ്പുകൾ",
     "logout": "ലോഗ്ഔട്ട്",
-    "changePhoto": "ഫോട്ടോ മാറ്റുക"
+    "changePhoto": "ഫോട്ടോ മാറ്റുക",
+    "personalizePrompt": "നിങ്ങളുടെ AI വ്യക്തിഗതമാക്കാൻ പെൻസിൽ ടാപ്പുചെയ്യുക.",
+    "safetyCircle": "💙 സുരക്ഷാ സർക്കിൾ",
+    "addTrustedContact": "നിങ്ങൾ വിശ്വസിക്കുന്ന ഒരാളെ ചേർക്കുക",
+    "addTrustedContactSubtext": "ബുദ്ധിമുട്ടുള്ള സമയങ്ങളിൽ ബന്ധപ്പെടാനുള്ള ഒരാൾ",
+    "languages": "🌐 ഭാഷകൾ",
+    "settings": "⚙️ ക്രമീകരണങ്ങൾ",
+    "darkMode": "ഡാർക്ക് മോഡ്",
+    "darkModeSubtitle": "രാത്രിക്ക് അനുയോജ്യമായത്",
+    "supportiveReminders": "പിന്തുണയ്ക്കുന്ന ഓർമ്മപ്പെടുത്തലുകൾ",
+    "supportiveRemindersSubtitle": "ദൈനംദിന പരിശോധനകളും പ്രോത്സാഹനവും",
+    "publicLeaderboard": "പൊതു ലീഡർബോർഡ്",
+    "publicLeaderboardSubtitle": "ആഗോള റാങ്കിംഗിൽ ചേരുക",
+    "accountControls": "അക്കൗണ്ടും ഡാറ്റ നിയന്ത്രണങ്ങളും",
+    "accountControlsSubtitle": "സ്വകാര്യത, ഡൗൺലോഡുകൾ, മായ്ക്കൽ",
+    "logoutBtn": "പുറത്തുകടക്കുക"
   },
   "onboarding": {
     "skip": "സ്കിപ്പ്",
@@ -120,5 +143,26 @@
     "edit": "എഡിറ്റ് ചെയ്യുക",
     "saved": "സേവ് ചെയ്തിരിക്കുന്നു",
     "remove": "നീക്കം ചെയ്യുക"
+  },
+  "dashboard": {
+    "goodMorning": "സുപ്രഭാതം",
+    "goodAfternoon": "ശുഭ ഉച്ചതിരിഞ്ഞ്",
+    "goodEvening": "ശുഭ സായാഹ്നം",
+    "dayStreak": "തുടർച്ചയായ ദിവസങ്ങൾ",
+    "level": "ലെവൽ",
+    "xp": "XP",
+    "dailyWellness": "ദൈനംദിന ക്ഷേമം",
+    "mood": "മനസ്സ്",
+    "mind": "മനസ്സ്",
+    "body": "ശരീരം",
+    "recentActivity": "സമീപകാല പ്രവർത്തനങ്ങൾ",
+    "achievements": "നേട്ടങ്ങൾ",
+    "viewUnlocked": "തുറന്നവ കാണുക",
+    "leaderboard": "ലീഡർബോർഡ്",
+    "globalRank": "ആഗോള റാങ്ക്",
+    "heatmap": "ഹീറ്റ്മാപ്പ്",
+    "activityLog": "പ്രവർത്തനരേഖ",
+    "analytics": "അനലിറ്റിക്സ്",
+    "moodReports": "മനസ്സും റിപ്പോർട്ടുകളും"
   }
 }

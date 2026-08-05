@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import { DeviceEventEmitter,
+import {
+  DeviceEventEmitter,
   ActivityIndicator,
   Alert,
   Modal,
@@ -16,6 +17,7 @@ import { DeviceEventEmitter,
   View,
   FlatList,
   Dimensions,
+  Image,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -46,6 +48,27 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
 import { FloatingBottomNav } from '../components/ui/Premium/LearningHubCards';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
+
+const { width } = Dimensions.get('window');
+
+// Light color scheme
+const COLORS = {
+  background: '#F0F4F8',
+  card: '#FFFFFF',
+  primary: '#4A90D9',
+  success: '#2ECC71',
+  warning: '#F39C12',
+  danger: '#E74C3C',
+  text: '#2C3E50',
+  textLight: '#7F8C8D',
+  border: '#E8EDF2',
+  shadow: 'rgba(0,0,0,0.06)',
+  gold: '#F1C40F',
+  purple: '#8E44AD',
+  accent: '#E67E22',
+  pink: '#FF6B9D',
+};
 
 const ProfileScreen = ({ navigation }) => {
   const { t } = useTranslation();
@@ -56,6 +79,7 @@ const ProfileScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
+
   const handleScroll = (event) => {
     const currentY = event.nativeEvent.contentOffset.y;
     if (Math.abs(currentY - lastScrollY) > 10) {
@@ -171,7 +195,6 @@ const ProfileScreen = ({ navigation }) => {
           try {
             setLoggingOut(true);
             await logoutCurrentUser();
-            // RootNavigator listens to auth state changes and will navigate to SignIn.
           } catch (error) {
             console.error('[Profile] Logout error:', error.message || error);
             Alert.alert(t('profile.logoutFailed'), error.message || t('auth.genericError', { defaultValue: 'Please try again.' }));
@@ -279,7 +302,6 @@ const ProfileScreen = ({ navigation }) => {
     setUpdatingPrivacy(true);
 
     try {
-      // Need to import updateProfilePrivacy from profileService
       const { updateProfilePrivacy } = require('../services/profileService');
       await updateProfilePrivacy(enabled);
     } catch (error) {
@@ -334,15 +356,6 @@ const ProfileScreen = ({ navigation }) => {
     } finally {
       setSavingPersonalization(false);
     }
-  };
-
-  const handleGoBack = () => {
-    if (navigation?.canGoBack && navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-
-    navigation.navigate('Home');
   };
 
   const handleEditTrustedContact = () => {
@@ -471,122 +484,111 @@ const ProfileScreen = ({ navigation }) => {
     );
   };
 
-  const handleOpenContacts = async () => {
-    try {
-      setLoadingContacts(true);
-      const permission = await Contacts.requestPermissionsAsync();
-
-      if (permission.status !== 'granted') {
-        Alert.alert(
-          t('trustedContact.permissionRequired', { defaultValue: 'Permission Required' }),
-          t('trustedContact.contactsPermissionText', { defaultValue: 'Please grant contacts permission.' })
-        );
-        setLoadingContacts(false);
-        return;
-      }
-
-      const { data } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
-      });
-
-      if (data.length > 0) {
-        const contactsWithPhone = data
-          .filter(contact => contact.phoneNumbers && contact.phoneNumbers.length > 0)
-          .map(contact => ({
-            id: contact.id,
-            name: contact.name || 'Unknown',
-            phones: contact.phoneNumbers.map(p => p.number),
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name));
-
-        setDeviceContacts(contactsWithPhone);
-        setShowContactsModal(true);
-      } else {
-        Alert.alert(
-          t('trustedContact.noContacts', { defaultValue: 'No Contacts' }),
-          t('trustedContact.noContactsMsg', { defaultValue: 'No contacts found.' })
-        );
-      }
-    } catch (error) {
-      console.error('Error accessing contacts:', error);
-      Alert.alert('Error', 'Failed to access contacts.');
-    } finally {
-      setLoadingContacts(false);
+  const getAvatarDisplay = () => {
+    if (updatingPhoto) {
+      return <ActivityIndicator size="small" color={COLORS.primary} />;
     }
-  };
-
-  const handleSelectContact = (contact) => {
-    setEditContactName(contact.name);
-    if (contact.phones && contact.phones.length > 0) {
-      setEditContactPhone(contact.phones[0]);
+    
+    if (profile?.photoURL) {
+      return (
+        <Image 
+          source={{ uri: profile.photoURL }} 
+          style={{ width: 72, height: 72, borderRadius: 36 }}
+          onError={() => {
+            console.log('Failed to load profile image');
+          }}
+        />
+      );
     }
-    setShowContactsModal(false);
+    
+    return <Text style={{ fontSize: 36 }}>👤</Text>;
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: isDark ? '#0F172A' : '#F7F9FC' }]}>
-        <ActivityIndicator size="large" color="#60A5FA" />
-        <Text style={[styles.loadingText, { color: theme.mutedText }]}>{t('profile.loading')}</Text>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: COLORS.background }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Loading profile...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: isDark ? '#0F172A' : '#F7F9FC' }]}>
-      {/* Animated Background Gradient Circles */}
-      {isDark && (
-        <>
-          <Animated.View style={[styles.bgGradientCircle, styles.bgCircleTop]} />
-          <Animated.View style={[styles.bgGradientCircle, styles.bgCircleBottom]} />
-        </>
-      )}
-
-      <Animated.ScrollView onScroll={handleScroll} scrollEventThrottle={16}
+    <SafeAreaView style={[styles.screen, { backgroundColor: COLORS.background }]}>
+      <TopBackButton fallbackRoute="Home" />
+      
+      <Animated.ScrollView
+        onScroll={handleScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#60A5FA" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={COLORS.primary} />}
       >
-        {/* ===== HEADER SECTION (TOP HERO AREA) ===== */}
-        <View style={styles.heroSection}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatarGradientBg}>
-              {updatingPhoto ? (
-                <ActivityIndicator size="large" color="#6C8EFF" />
-              ) : profile?.photoURL ? (
-                <Text style={{ fontSize: 48 }}>👤</Text>
-              ) : (
-                <Text style={{ fontSize: 48 }}>👤</Text>
-              )}
+        {/* Header */}
+        <Animated.View entering={FadeInDown.duration(600)}>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.headerTitle}>👤 Profile</Text>
+              <Text style={styles.headerSubtitle}>Manage your account settings</Text>
             </View>
-            <Pressable
-              onPress={handleChangePhoto}
-              disabled={updatingPhoto}
-              style={styles.editBadge}
-            >
-              <MaterialCommunityIcons name="pencil" size={14} color="#FFFFFF" />
-            </Pressable>
           </View>
+        </Animated.View>
 
-          <Text style={styles.heroGreeting}>
-            Hello, {profile?.fullName ? profile.fullName.split(' ')[0] : 'friend'} 👋
-          </Text>
-          <Text style={styles.heroSubtitle}>
-            Your emotional wellness companion
-          </Text>
-
-          <View style={styles.statusPill}>
-            <Text style={styles.statusPillText}>🟢 Stable and improving</Text>
+        {/* Profile Card */}
+        <Animated.View entering={FadeInDown.delay(100).duration(600)}>
+          <View style={styles.profileCard}>
+            <View style={styles.profileRow}>
+              <View style={styles.avatarContainer}>
+                <View style={[styles.avatarGradientBg, profile?.photoURL && { padding: 0 }]}>
+                  {getAvatarDisplay()}
+                </View>
+                <Pressable
+                  onPress={handleChangePhoto}
+                  disabled={updatingPhoto}
+                  style={styles.editBadge}
+                >
+                  <MaterialCommunityIcons name="camera" size={14} color="#FFFFFF" />
+                </Pressable>
+              </View>
+              
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{profile?.fullName || 'User'}</Text>
+                <Text style={styles.profileEmail}>{profile?.email || 'No email'}</Text>
+                <TouchableOpacity style={styles.editProfileBtn} onPress={handleEditProfile}>
+                  <MaterialCommunityIcons name="pencil" size={14} color={COLORS.primary} />
+                  <Text style={styles.editProfileText}>Edit Profile</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
+        </Animated.View>
 
-        {/* ===== AI COMPANION SECTION ===== */}
-        <Animated.View entering={FadeInDown.delay(100).duration(600)} style={styles.sectionContainer}>
+        {/* Stats Row */}
+        <Animated.View entering={FadeInDown.delay(150).duration(600)}>
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{moods.length}</Text>
+              <Text style={styles.statLabel}>Moods Logged</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{profile?.streak || 0}</Text>
+              <Text style={styles.statLabel}>Day Streak</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{profile?.totalXP || 0}</Text>
+              <Text style={styles.statLabel}>Total XP</Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* AI Companion Style */}
+        <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Your AI Companion Style</Text>
+            <Text style={styles.sectionTitle}>🤖 AI Companion Style</Text>
             <Pressable onPress={handleEditPersonalization} style={styles.iconButton}>
-              <MaterialCommunityIcons name="pencil" size={18} color="#6C8EFF" />
+              <MaterialCommunityIcons name="pencil" size={18} color={COLORS.primary} />
             </Pressable>
           </View>
 
@@ -594,30 +596,30 @@ const ProfileScreen = ({ navigation }) => {
             {personalization?.role || personalization?.concern || personalization?.supportStyle ? (
               <>
                 {personalization.role && (
-                  <View style={[styles.aiChip, { backgroundColor: '#EAF2FF' }]}>
-                    <Text style={[styles.aiChipText, { color: '#6C8EFF' }]}>🎓 {personalization.role}</Text>
+                  <View style={[styles.aiChip, { backgroundColor: `${COLORS.primary}15` }]}>
+                    <Text style={[styles.aiChipText, { color: COLORS.primary }]}>🎓 {personalization.role}</Text>
                   </View>
                 )}
                 {personalization.supportStyle && (
-                  <View style={[styles.aiChip, { backgroundColor: '#F3ECFF' }]}>
-                    <Text style={[styles.aiChipText, { color: '#A98EFF' }]}>🌿 {personalization.supportStyle}</Text>
+                  <View style={[styles.aiChip, { backgroundColor: `${COLORS.purple}15` }]}>
+                    <Text style={[styles.aiChipText, { color: COLORS.purple }]}>🌿 {personalization.supportStyle}</Text>
                   </View>
                 )}
                 {personalization.concern && (
-                  <View style={[styles.aiChip, { backgroundColor: '#FFF0F5' }]}>
-                    <Text style={[styles.aiChipText, { color: '#FF8DA1' }]}>🧠 {personalization.concern}</Text>
+                  <View style={[styles.aiChip, { backgroundColor: `${COLORS.pink}15` }]}>
+                    <Text style={[styles.aiChipText, { color: COLORS.pink }]}>🧠 {personalization.concern}</Text>
                   </View>
                 )}
               </>
             ) : (
-              <Text style={styles.emptyText}>Tap the pencil to personalize your AI.</Text>
+              <Text style={styles.emptyText}>{t('profile.personalizePrompt', { defaultValue: 'Tap the pencil to personalize your AI.' })}</Text>
             )}
           </View>
         </Animated.View>
 
-        {/* ===== SAFETY CIRCLE SECTION ===== */}
+        {/* Safety Circle */}
         <Animated.View entering={FadeInDown.delay(300).duration(600)} style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Safety Circle</Text>
+          <Text style={styles.sectionTitle}>{t('profile.safetyCircle', { defaultValue: '💙 Safety Circle' })}</Text>
           
           {trustedContact ? (
             <View style={styles.safetyCard}>
@@ -630,48 +632,27 @@ const ProfileScreen = ({ navigation }) => {
                 <Text style={styles.safetyName}>{trustedContact.name}</Text>
                 <Text style={styles.safetyRelation}>{trustedContact.phone}</Text>
               </View>
-              <Pressable onPress={handleEditTrustedContact} style={styles.iconButton}>
-                <MaterialCommunityIcons name="pencil" size={18} color="#6C8EFF" />
-              </Pressable>
+              <View style={styles.safetyActions}>
+                <Pressable onPress={handleEditTrustedContact} style={styles.safetyActionBtn}>
+                  <MaterialCommunityIcons name="pencil" size={18} color={COLORS.primary} />
+                </Pressable>
+                <Pressable onPress={handleRemoveTrustedContact} style={styles.safetyActionBtn}>
+                  <MaterialCommunityIcons name="trash-can-outline" size={18} color={COLORS.danger} />
+                </Pressable>
+              </View>
             </View>
           ) : (
             <Pressable onPress={handleEditTrustedContact} style={styles.safetyCtaCard}>
-              <MaterialCommunityIcons name="heart-plus-outline" size={24} color="#6C8EFF" style={{ marginBottom: 8 }} />
-              <Text style={styles.safetyCtaText}>💙 Add someone you trust</Text>
+              <MaterialCommunityIcons name="heart-plus-outline" size={28} color={COLORS.primary} />
+              <Text style={styles.safetyCtaText}>{t('profile.addTrustedContact', { defaultValue: 'Add someone you trust' })}</Text>
+              <Text style={styles.safetyCtaSubtext}>{t('profile.addTrustedContactSubtext', { defaultValue: 'A contact to reach out to during difficult moments' })}</Text>
             </Pressable>
           )}
         </Animated.View>
 
-        {/* ===== ACCOUNT INFORMATION SECTION ===== */}
+        {/* Languages */}
         <Animated.View entering={FadeInDown.delay(400).duration(600)} style={styles.sectionContainer}>
-          <View style={styles.accountCard}>
-            <Pressable onPress={handleEditProfile} style={styles.accountEditButton}>
-              <MaterialCommunityIcons name="pencil" size={18} color="#6B7280" />
-            </Pressable>
-            
-            <View style={styles.accountRow}>
-              <MaterialCommunityIcons name="account-outline" size={20} color="#6C8EFF" style={styles.accountIcon} />
-              <View>
-                <Text style={styles.accountLabel}>FULL NAME</Text>
-                <Text style={styles.accountValue}>{profile?.fullName || 'Not set'}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.accountDivider} />
-            
-            <View style={styles.accountRow}>
-              <MaterialCommunityIcons name="email-outline" size={20} color="#6C8EFF" style={styles.accountIcon} />
-              <View>
-                <Text style={styles.accountLabel}>EMAIL</Text>
-                <Text style={styles.accountValue}>{profile?.email || 'Not set'}</Text>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* ===== LANGUAGE SECTION ===== */}
-        <Animated.View entering={FadeInDown.delay(500).duration(600)} style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>🌐 Languages</Text>
+          <Text style={styles.sectionTitle}>{t('profile.languages', { defaultValue: '🌐 Languages' })}</Text>
           <View style={styles.languageChipsContainer}>
             {supportedLanguages.map((code) => {
               const isActive = language === code;
@@ -693,19 +674,23 @@ const ProfileScreen = ({ navigation }) => {
           </View>
         </Animated.View>
 
-        {/* ===== SETTINGS SECTION ===== */}
-        <Animated.View entering={FadeInDown.delay(600).duration(600)} style={styles.sectionContainer}>
+        {/* Settings */}
+        <Animated.View entering={FadeInDown.delay(500).duration(600)} style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>{t('profile.settings', { defaultValue: '⚙️ Settings' })}</Text>
+          
           <View style={styles.settingsCard}>
             <View style={styles.settingRow}>
-              <MaterialCommunityIcons name="moon-waning-crescent" size={22} color="#A98EFF" style={styles.settingIcon} />
+              <View style={[styles.settingIconWrap, { backgroundColor: `${COLORS.purple}15` }]}>
+                <MaterialCommunityIcons name="moon-waning-crescent" size={20} color={COLORS.purple} />
+              </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Dark Mode</Text>
-                <Text style={styles.settingSubtitle}>Soothing for nighttime</Text>
+                <Text style={styles.settingTitle}>{t('profile.darkMode', { defaultValue: 'Dark Mode' })}</Text>
+                <Text style={styles.settingSubtitle}>{t('profile.darkModeSubtitle', { defaultValue: 'Soothing for nighttime' })}</Text>
               </View>
               <Switch
                 value={isDark}
                 onValueChange={handleToggleDarkMode}
-                trackColor={{ false: '#E5E7EB', true: '#A98EFF' }}
+                trackColor={{ false: '#E5E7EB', true: COLORS.purple }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -713,16 +698,18 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.settingDivider} />
             
             <View style={styles.settingRow}>
-              <MaterialCommunityIcons name="bell-outline" size={22} color="#6C8EFF" style={styles.settingIcon} />
+              <View style={[styles.settingIconWrap, { backgroundColor: `${COLORS.primary}15` }]}>
+                <MaterialCommunityIcons name="bell-outline" size={20} color={COLORS.primary} />
+              </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Supportive Reminders</Text>
-                <Text style={styles.settingSubtitle}>Daily check-ins & encouragement</Text>
+                <Text style={styles.settingTitle}>{t('profile.supportiveReminders', { defaultValue: 'Supportive Reminders' })}</Text>
+                <Text style={styles.settingSubtitle}>{t('profile.supportiveRemindersSubtitle', { defaultValue: 'Daily check-ins & encouragement' })}</Text>
               </View>
               <Switch
                 value={notificationsEnabled}
                 onValueChange={handleToggleNotifications}
                 disabled={updatingNotifications}
-                trackColor={{ false: '#E5E7EB', true: '#6C8EFF' }}
+                trackColor={{ false: '#E5E7EB', true: COLORS.primary }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -730,81 +717,87 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.settingDivider} />
 
             <View style={styles.settingRow}>
-              <MaterialCommunityIcons name="earth" size={22} color="#10B981" style={styles.settingIcon} />
+              <View style={[styles.settingIconWrap, { backgroundColor: `${COLORS.success}15` }]}>
+                <MaterialCommunityIcons name="earth" size={20} color={COLORS.success} />
+              </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Public Leaderboard</Text>
-                <Text style={styles.settingSubtitle}>Opt-in to global ranking</Text>
+                <Text style={styles.settingTitle}>{t('profile.publicLeaderboard', { defaultValue: 'Public Leaderboard' })}</Text>
+                <Text style={styles.settingSubtitle}>{t('profile.publicLeaderboardSubtitle', { defaultValue: 'Opt-in to global ranking' })}</Text>
               </View>
               <Switch
                 value={isPublic}
                 onValueChange={handleTogglePrivacy}
                 disabled={updatingPrivacy}
-                trackColor={{ false: '#E5E7EB', true: '#10B981' }}
+                trackColor={{ false: '#E5E7EB', true: COLORS.success }}
                 thumbColor="#FFFFFF"
               />
             </View>
-            
+
             <View style={styles.settingDivider} />
-            
-            <TouchableOpacity 
-              style={styles.settingRow} 
-              onPress={() => navigation.navigate('AccountDataControls')}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="shield-lock-outline" size={22} color="#10B981" style={styles.settingIcon} />
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Account & Data Controls</Text>
-                <Text style={styles.settingSubtitle}>Privacy, downloads, & deletion</Text>
+
+            <View style={styles.settingRow}>
+              <View style={[styles.settingIconWrap, { backgroundColor: `${COLORS.success}15` }]}>
+                <MaterialCommunityIcons name="shield-lock-outline" size={20} color={COLORS.success} />
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={isDark ? '#475569' : '#CBD5E1'} />
-            </TouchableOpacity>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>{t('profile.accountControls', { defaultValue: 'Account & Data Controls' })}</Text>
+                <Text style={styles.settingSubtitle}>{t('profile.accountControlsSubtitle', { defaultValue: 'Privacy, downloads, & deletion' })}</Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => navigation.navigate('AccountDataControls')}
+                style={{ padding: 4 }}
+              >
+                <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.textLight} />
+              </TouchableOpacity>
+            </View>
           </View>
         </Animated.View>
 
-        {/* ===== LOGOUT BUTTON ===== */}
-        <Animated.View entering={FadeInDown.delay(700).duration(600)} style={styles.logoutContainer}>
-          <Pressable onPress={handleLogout} disabled={loggingOut} style={styles.logoutButton}>
+        {/* Logout */}
+        <Animated.View entering={FadeInDown.delay(600).duration(600)} style={styles.logoutContainer}>
+          <TouchableOpacity onPress={handleLogout} disabled={loggingOut} style={styles.logoutButton}>
             {loggingOut ? (
-              <ActivityIndicator size="small" color="#EF4444" />
+              <ActivityIndicator size="small" color={COLORS.danger} />
             ) : (
               <>
-                <MaterialCommunityIcons name="logout" size={20} color="#EF4444" style={{ marginRight: 8 }} />
-                <Text style={styles.logoutText}>Logout</Text>
+                <MaterialCommunityIcons name="logout" size={20} color={COLORS.danger} />
+                <Text style={styles.logoutText}>{t('profile.logoutBtn', { defaultValue: 'Logout' })}</Text>
               </>
             )}
-          </Pressable>
+          </TouchableOpacity>
         </Animated.View>
-</Animated.ScrollView>
 
-      {/* ===== MODALS ===== */}
+        <View style={{ height: 40 }} />
+      </Animated.ScrollView>
+
       {/* Edit Name Modal */}
       <Modal visible={editVisible} transparent animationType="fade" onRequestClose={() => setEditVisible(false)}>
-        <View style={[styles.modalBackdrop, { backgroundColor: isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.4)' }]}>
-          <View style={[styles.modalCard, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
-            <Text style={[styles.modalTitle, { color: isDark ? '#E2E8F0' : '#1F2937' }]}>
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}>
+          <View style={[styles.modalCard, { backgroundColor: COLORS.card }]}>
+            <Text style={[styles.modalTitle, { color: COLORS.text }]}>
               {t('profile.editTitle')}
             </Text>
-            <Text style={[styles.modalLabel, { color: isDark ? '#94A3B8' : '#6B7280' }]}>
+            <Text style={[styles.modalLabel, { color: COLORS.textLight }]}>
               {t('profile.fullName')}
             </Text>
             <TextInput
               value={editName}
               onChangeText={handleNameChange}
               placeholder={t('profile.enterFullName')}
-              placeholderTextColor={isDark ? '#64748B' : '#9CA3AF'}
+              placeholderTextColor={COLORS.textLight}
               style={[
                 styles.modalInput,
                 {
-                  color: isDark ? '#E2E8F0' : '#1F2937',
-                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(96, 165, 250, 0.05)',
-                  borderColor: editNameError ? '#EF4444' : (isDark ? 'rgba(96, 165, 250, 0.3)' : 'rgba(96, 165, 250, 0.2)'),
+                  color: COLORS.text,
+                  backgroundColor: `${COLORS.primary}05`,
+                  borderColor: editNameError ? COLORS.danger : `${COLORS.primary}20`,
                 },
                 editNameError ? styles.modalInputError : null,
               ]}
               editable={!savingProfile}
               autoCapitalize="words"
             />
-            {editNameError ? <Text style={[styles.errorText, { color: '#EF4444' }]}>{editNameError}</Text> : null}
+            {editNameError ? <Text style={[styles.errorText, { color: COLORS.danger }]}>{editNameError}</Text> : null}
 
             <View style={styles.modalActions}>
               <Pressable
@@ -812,14 +805,14 @@ const ProfileScreen = ({ navigation }) => {
                 onPress={() => setEditVisible(false)}
                 disabled={savingProfile}
               >
-                <Text style={[styles.cancelText, { color: isDark ? '#94A3B8' : '#6B7280' }]}>
+                <Text style={[styles.cancelText, { color: COLORS.textLight }]}>
                   {t('common.cancel')}
                 </Text>
               </Pressable>
               <Pressable
                 style={[
                   styles.saveButton,
-                  { backgroundColor: (savingProfile || !!editNameError) ? '#94A3B8' : '#60A5FA' }
+                  { backgroundColor: (savingProfile || !!editNameError) ? COLORS.textLight : COLORS.primary }
                 ]}
                 onPress={handleSaveProfile}
                 disabled={savingProfile || !!editNameError}
@@ -837,106 +830,42 @@ const ProfileScreen = ({ navigation }) => {
 
       {/* Trusted Contact Modal */}
       <Modal visible={editTrustedContactVisible} transparent animationType="slide" onRequestClose={() => setEditTrustedContactVisible(false)}>
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.4)' }}>
-          <View style={{
-            backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-            borderTopLeftRadius: 28,
-            borderTopRightRadius: 28,
-            paddingHorizontal: 24,
-            paddingTop: 28,
-            paddingBottom: 32,
-            maxHeight: '85%',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.15,
-            shadowRadius: 12,
-            elevation: 10,
-          }}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.4)' }}>
+          <View style={[styles.contactModal, { backgroundColor: COLORS.card }]}>
             <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-              {/* Header */}
-              <View style={{ marginBottom: 28, alignItems: 'center' }}>
-                <Text style={{
-                  fontSize: 26,
-                  fontWeight: '700',
-                  color: isDark ? '#E2E8F0' : '#1F2937',
-                  marginBottom: 8,
-                }}>
+              <View style={styles.contactModalHeader}>
+                <Text style={[styles.contactModalTitle, { color: COLORS.text }]}>
                   {trustedContact ? 'Edit Contact' : 'Add Trusted Contact'}
                 </Text>
-                <Text style={{
-                  fontSize: 14,
-                  color: isDark ? '#94A3B8' : '#6B7280',
-                  textAlign: 'center',
-                }}>
+                <Text style={[styles.contactModalSubtitle, { color: COLORS.textLight }]}>
                   Someone to reach out to during difficult moments
                 </Text>
               </View>
 
-              {/* Contact Name Input */}
-              <View style={{ marginBottom: 20 }}>
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '600',
-                  color: isDark ? '#94A3B8' : '#6B7280',
-                  textTransform: 'uppercase',
-                  letterSpacing: 1,
-                  marginBottom: 10,
-                }}>
-                  Contact Name
-                </Text>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[styles.inputLabel, { color: COLORS.textLight }]}>Contact Name</Text>
                 <TextInput
-                  placeholder={t('trustedContact.contactNamePlaceholder', { defaultValue: 'e.g., Mom, Friend' })}
-                  placeholderTextColor={isDark ? '#64748B' : '#9CA3AF'}
+                  placeholder="e.g., Mom, Friend"
+                  placeholderTextColor={COLORS.textLight}
                   value={editContactName}
                   onChangeText={setEditContactName}
                   editable={!savingContact}
                   autoCapitalize="words"
-                  style={{
-                    height: 56,
-                    borderRadius: 18,
-                    paddingHorizontal: 16,
-                    fontSize: 16,
-                    fontWeight: '500',
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(96, 165, 250, 0.05)',
-                    color: isDark ? '#E2E8F0' : '#1F2937',
-                    borderWidth: 1.5,
-                    borderColor: isDark ? 'rgba(96, 165, 250, 0.3)' : 'rgba(96, 165, 250, 0.2)',
-                  }}
+                  style={[styles.contactInput, { color: COLORS.text, backgroundColor: `${COLORS.primary}05`, borderColor: `${COLORS.primary}20` }]}
                 />
               </View>
 
-              {/* Phone Input */}
-              <View style={{ marginBottom: 32 }}>
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '600',
-                  color: isDark ? '#94A3B8' : '#6B7280',
-                  textTransform: 'uppercase',
-                  letterSpacing: 1,
-                  marginBottom: 10,
-                }}>
-                  Phone Number
-                </Text>
+              <View style={{ marginBottom: 24 }}>
+                <Text style={[styles.inputLabel, { color: COLORS.textLight }]}>Phone Number</Text>
                 <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
                   <TextInput
-                    placeholder={t('trustedContact.phoneNumberPlaceholder', { defaultValue: '+91 98765 43210' })}
-                    placeholderTextColor={isDark ? '#64748B' : '#9CA3AF'}
+                    placeholder="+91 98765 43210"
+                    placeholderTextColor={COLORS.textLight}
                     value={editContactPhone}
                     onChangeText={setEditContactPhone}
                     keyboardType="phone-pad"
                     editable={!savingContact}
-                    style={{
-                      flex: 1,
-                      height: 56,
-                      borderRadius: 18,
-                      paddingHorizontal: 16,
-                      fontSize: 16,
-                      fontWeight: '500',
-                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(96, 165, 250, 0.05)',
-                      color: isDark ? '#E2E8F0' : '#1F2937',
-                      borderWidth: 1.5,
-                      borderColor: isDark ? 'rgba(96, 165, 250, 0.3)' : 'rgba(96, 165, 250, 0.2)',
-                    }}
+                    style={[styles.contactInput, { flex: 1, color: COLORS.text, backgroundColor: `${COLORS.primary}05`, borderColor: `${COLORS.primary}20` }]}
                   />
                   <TouchableOpacity
                     onPress={() => {
@@ -944,36 +873,19 @@ const ProfileScreen = ({ navigation }) => {
                       handleOpenContactsForEdit();
                     }}
                     disabled={savingContact || loadingContacts}
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 18,
-                      backgroundColor: isDark ? 'rgba(96, 165, 250, 0.2)' : 'rgba(96, 165, 250, 0.1)',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      borderWidth: 1.5,
-                      borderColor: '#60A5FA',
-                    }}
+                    style={[styles.contactsBtn, { backgroundColor: `${COLORS.primary}15` }]}
                   >
                     <MaterialCommunityIcons
                       name={loadingContacts ? 'loading' : 'contacts'}
                       size={22}
-                      color="#60A5FA"
+                      color={COLORS.primary}
                     />
                   </TouchableOpacity>
                 </View>
               </View>
             </ScrollView>
 
-            {/* Footer Buttons */}
-            <View style={{
-              flexDirection: 'row',
-              gap: 12,
-              marginTop: 8,
-              borderTopWidth: 1,
-              borderTopColor: isDark ? 'rgba(148, 163, 184, 0.1)' : 'rgba(96, 165, 250, 0.1)',
-              paddingTop: 16,
-            }}>
+            <View style={styles.contactModalFooter}>
               <TouchableOpacity
                 onPress={() => {
                   setEditTrustedContactVisible(false);
@@ -981,24 +893,9 @@ const ProfileScreen = ({ navigation }) => {
                   setEditContactPhone('');
                 }}
                 disabled={savingContact}
-                style={{
-                  flex: 1,
-                  paddingVertical: 14,
-                  paddingHorizontal: 16,
-                  borderRadius: 16,
-                  backgroundColor: 'transparent',
-                  borderWidth: 1.5,
-                  borderColor: isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(96, 165, 250, 0.2)',
-                }}
+                style={[styles.contactCancelBtn, { borderColor: `${COLORS.primary}20` }]}
               >
-                <Text style={{
-                  textAlign: 'center',
-                  fontSize: 15,
-                  fontWeight: '600',
-                  color: isDark ? '#A7D8FF' : '#0369A1',
-                }}>
-                  Cancel
-                </Text>
+                <Text style={[styles.contactCancelText, { color: COLORS.primary }]}>Cancel</Text>
               </TouchableOpacity>
 
               <Pressable
@@ -1007,25 +904,15 @@ const ProfileScreen = ({ navigation }) => {
                   handleSaveTrustedContact();
                 }}
                 disabled={savingContact || !editContactName.trim() || !editContactPhone.trim()}
-                style={{
-                  flex: 1,
-                  paddingVertical: 14,
-                  paddingHorizontal: 16,
-                  borderRadius: 16,
-                  backgroundColor: (savingContact || !editContactName.trim() || !editContactPhone.trim()) ? '#94A3B8' : '#60A5FA',
-                }}
+                style={[
+                  styles.contactSaveBtn,
+                  { backgroundColor: (savingContact || !editContactName.trim() || !editContactPhone.trim()) ? COLORS.textLight : COLORS.primary }
+                ]}
               >
                 {savingContact ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={{
-                    textAlign: 'center',
-                    fontSize: 15,
-                    fontWeight: '600',
-                    color: '#FFFFFF',
-                  }}>
-                    Save Contact
-                  </Text>
+                  <Text style={styles.contactSaveText}>Save Contact</Text>
                 )}
               </Pressable>
             </View>
@@ -1035,21 +922,13 @@ const ProfileScreen = ({ navigation }) => {
 
       {/* Contacts Selection Modal */}
       <Modal visible={showContactsModal} transparent animationType="slide" onRequestClose={() => setShowContactsModal(false)}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: isDark ? '#1E293B' : '#F8FAFC' }}>
-          <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingHorizontal: 20,
-            paddingVertical: 16,
-            borderBottomWidth: 1,
-            borderBottomColor: isDark ? 'rgba(148, 163, 184, 0.1)' : 'rgba(96, 165, 250, 0.1)',
-          }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#E2E8F0' : '#1F2937' }}>
-              {t('trustedContact.selectContact', { defaultValue: 'Select Contact' })}
+        <SafeAreaView style={[styles.contactsModalContainer, { backgroundColor: COLORS.background }]}>
+          <View style={styles.contactsModalHeader}>
+            <Text style={[styles.contactsModalTitle, { color: COLORS.text }]}>
+              Select Contact
             </Text>
             <TouchableOpacity onPress={() => setShowContactsModal(false)}>
-              <MaterialCommunityIcons name="close" size={24} color={isDark ? '#E2E8F0' : '#1F2937'} />
+              <MaterialCommunityIcons name="close" size={24} color={COLORS.text} />
             </TouchableOpacity>
           </View>
           <FlatList
@@ -1058,34 +937,18 @@ const ProfileScreen = ({ navigation }) => {
             renderItem={({ item }) => (
               <Pressable
                 onPress={() => handleSelectContactForEdit(item)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: 20,
-                  paddingVertical: 16,
-                  borderBottomWidth: 0.5,
-                  borderBottomColor: isDark ? 'rgba(148, 163, 184, 0.1)' : 'rgba(96, 165, 250, 0.1)',
-                  backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                }}
+                style={[styles.contactItem, { backgroundColor: COLORS.card, borderBottomColor: COLORS.border }]}
               >
-                <View style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: isDark ? 'rgba(96, 165, 250, 0.2)' : 'rgba(96, 165, 250, 0.1)',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  marginRight: 12,
-                }}>
-                  <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#E0E7FF' : '#0369A1' }}>
+                <View style={[styles.contactItemAvatar, { backgroundColor: `${COLORS.primary}15` }]}>
+                  <Text style={[styles.contactItemInitial, { color: COLORS.primary }]}>
                     {item.name[0]}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '500', color: isDark ? '#E2E8F0' : '#1F2937' }}>
+                  <Text style={[styles.contactItemName, { color: COLORS.text }]}>
                     {item.name}
                   </Text>
-                  <Text style={{ fontSize: 13, color: isDark ? '#94A3B8' : '#6B7280', marginTop: 4 }}>
+                  <Text style={[styles.contactItemPhone, { color: COLORS.textLight }]}>
                     {item.phones[0]}
                   </Text>
                 </View>
@@ -1098,54 +961,21 @@ const ProfileScreen = ({ navigation }) => {
 
       {/* Personalization Modal */}
       <Modal visible={editPersonalizationVisible} transparent animationType="slide" onRequestClose={() => setEditPersonalizationVisible(false)}>
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.4)' }}>
-          <View style={{
-            backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-            borderTopLeftRadius: 28,
-            borderTopRightRadius: 28,
-            paddingHorizontal: 20,
-            paddingTop: 24,
-            paddingBottom: 32,
-            maxHeight: '90%',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.15,
-            shadowRadius: 12,
-            elevation: 10,
-          }}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0, 0, 0, 0.4)' }}>
+          <View style={[styles.personalizationModal, { backgroundColor: COLORS.card }]}>
             <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-              {/* Header */}
-              <View style={{ marginBottom: 28, alignItems: 'center' }}>
-                <Text style={{
-                  fontSize: 24,
-                  fontWeight: '700',
-                  color: isDark ? '#E2E8F0' : '#1F2937',
-                  marginBottom: 8,
-                }}>
+              <View style={styles.personalizationHeader}>
+                <Text style={[styles.personalizationTitle, { color: COLORS.text }]}>
                   Customize Your AI Style
                 </Text>
-                <Text style={{
-                  fontSize: 14,
-                  color: isDark ? '#94A3B8' : '#6B7280',
-                  textAlign: 'center',
-                }}>
+                <Text style={[styles.personalizationSubtitle, { color: COLORS.textLight }]}>
                   Help MindCare understand your needs
                 </Text>
               </View>
 
-              {/* Role Section */}
-              <View style={{ marginBottom: 24 }}>
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '600',
-                  color: isDark ? '#94A3B8' : '#6B7280',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                  marginBottom: 12,
-                }}>
-                  Your Role
-                </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              <View style={{ marginBottom: 20 }}>
+                <Text style={[styles.personalizationLabel, { color: COLORS.textLight }]}>Your Role</Text>
+                <View style={styles.personalizationOptions}>
                   {[
                     { id: 'student', icon: '🎓', label: 'Student' },
                     { id: 'professional', icon: '💼', label: 'Professional' },
@@ -1157,21 +987,20 @@ const ProfileScreen = ({ navigation }) => {
                         setEditPersonalization({ ...editPersonalization, role: role.id });
                         Haptics.selectionAsync();
                       }}
-                      style={{
-                        paddingVertical: 10,
-                        paddingHorizontal: 16,
-                        borderRadius: 20,
-                        backgroundColor: editPersonalization.role === role.id
-                          ? '#60A5FA'
-                          : isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(96, 165, 250, 0.05)',
-                        borderWidth: editPersonalization.role === role.id ? 0 : 1,
-                        borderColor: editPersonalization.role === role.id ? 'transparent' : (isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(96, 165, 250, 0.2)'),
-                      }}
+                      style={[
+                        styles.personalizationChip,
+                        {
+                          backgroundColor: editPersonalization.role === role.id
+                            ? COLORS.primary
+                            : `${COLORS.primary}08`,
+                          borderColor: editPersonalization.role === role.id ? 'transparent' : COLORS.border,
+                        }
+                      ]}
                     >
                       <Text style={{
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: '500',
-                        color: editPersonalization.role === role.id ? '#FFFFFF' : (isDark ? '#E0E7FF' : '#0369A1'),
+                        color: editPersonalization.role === role.id ? '#FFFFFF' : COLORS.text,
                       }}>
                         {role.icon} {role.label}
                       </Text>
@@ -1180,19 +1009,9 @@ const ProfileScreen = ({ navigation }) => {
                 </View>
               </View>
 
-              {/* Concern Section */}
-              <View style={{ marginBottom: 24 }}>
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '600',
-                  color: isDark ? '#94A3B8' : '#6B7280',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                  marginBottom: 12,
-                }}>
-                  Main Concern
-                </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              <View style={{ marginBottom: 20 }}>
+                <Text style={[styles.personalizationLabel, { color: COLORS.textLight }]}>Main Concern</Text>
+                <View style={styles.personalizationOptions}>
                   {[
                     { id: 'stress', icon: '😣', label: 'Stress' },
                     { id: 'anxiety', icon: '😟', label: 'Anxiety' },
@@ -1205,21 +1024,20 @@ const ProfileScreen = ({ navigation }) => {
                         setEditPersonalization({ ...editPersonalization, concern: concern.id });
                         Haptics.selectionAsync();
                       }}
-                      style={{
-                        paddingVertical: 10,
-                        paddingHorizontal: 16,
-                        borderRadius: 20,
-                        backgroundColor: editPersonalization.concern === concern.id
-                          ? '#8B5CF6'
-                          : isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(139, 92, 246, 0.05)',
-                        borderWidth: editPersonalization.concern === concern.id ? 0 : 1,
-                        borderColor: editPersonalization.concern === concern.id ? 'transparent' : (isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(139, 92, 246, 0.2)'),
-                      }}
+                      style={[
+                        styles.personalizationChip,
+                        {
+                          backgroundColor: editPersonalization.concern === concern.id
+                            ? COLORS.purple
+                            : `${COLORS.purple}08`,
+                          borderColor: editPersonalization.concern === concern.id ? 'transparent' : COLORS.border,
+                        }
+                      ]}
                     >
                       <Text style={{
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: '500',
-                        color: editPersonalization.concern === concern.id ? '#FFFFFF' : (isDark ? '#D8B4FE' : '#7C3AED'),
+                        color: editPersonalization.concern === concern.id ? '#FFFFFF' : COLORS.text,
                       }}>
                         {concern.icon} {concern.label}
                       </Text>
@@ -1228,19 +1046,9 @@ const ProfileScreen = ({ navigation }) => {
                 </View>
               </View>
 
-              {/* Support Style */}
-              <View style={{ marginBottom: 32 }}>
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '600',
-                  color: isDark ? '#94A3B8' : '#6B7280',
-                  textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                  marginBottom: 12,
-                }}>
-                  Support Style
-                </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              <View style={{ marginBottom: 24 }}>
+                <Text style={[styles.personalizationLabel, { color: COLORS.textLight }]}>Support Style</Text>
+                <View style={styles.personalizationOptions}>
                   {[
                     { id: 'calm', icon: '🌿', label: 'Calm' },
                     { id: 'motivational', icon: '🚀', label: 'Motivational' },
@@ -1252,21 +1060,20 @@ const ProfileScreen = ({ navigation }) => {
                         setEditPersonalization({ ...editPersonalization, supportStyle: style.id });
                         Haptics.selectionAsync();
                       }}
-                      style={{
-                        paddingVertical: 10,
-                        paddingHorizontal: 16,
-                        borderRadius: 20,
-                        backgroundColor: editPersonalization.supportStyle === style.id
-                          ? '#22C55E'
-                          : isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(34, 197, 94, 0.05)',
-                        borderWidth: editPersonalization.supportStyle === style.id ? 0 : 1,
-                        borderColor: editPersonalization.supportStyle === style.id ? 'transparent' : (isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(34, 197, 94, 0.2)'),
-                      }}
+                      style={[
+                        styles.personalizationChip,
+                        {
+                          backgroundColor: editPersonalization.supportStyle === style.id
+                            ? COLORS.success
+                            : `${COLORS.success}08`,
+                          borderColor: editPersonalization.supportStyle === style.id ? 'transparent' : COLORS.border,
+                        }
+                      ]}
                     >
                       <Text style={{
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: '500',
-                        color: editPersonalization.supportStyle === style.id ? '#FFFFFF' : (isDark ? '#86EFAC' : '#15803D'),
+                        color: editPersonalization.supportStyle === style.id ? '#FFFFFF' : COLORS.text,
                       }}>
                         {style.icon} {style.label}
                       </Text>
@@ -1276,36 +1083,13 @@ const ProfileScreen = ({ navigation }) => {
               </View>
             </ScrollView>
 
-            {/* Footer */}
-            <View style={{
-              flexDirection: 'row',
-              gap: 12,
-              marginTop: 12,
-              borderTopWidth: 1,
-              borderTopColor: isDark ? 'rgba(148, 163, 184, 0.1)' : 'rgba(96, 165, 250, 0.1)',
-              paddingTop: 16,
-            }}>
+            <View style={styles.personalizationFooter}>
               <TouchableOpacity
                 onPress={() => setEditPersonalizationVisible(false)}
                 disabled={savingPersonalization}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  paddingHorizontal: 16,
-                  borderRadius: 16,
-                  backgroundColor: 'transparent',
-                  borderWidth: 1.5,
-                  borderColor: isDark ? 'rgba(148, 163, 184, 0.3)' : 'rgba(96, 165, 250, 0.2)',
-                }}
+                style={[styles.personalizationCancelBtn, { borderColor: COLORS.border }]}
               >
-                <Text style={{
-                  textAlign: 'center',
-                  fontSize: 15,
-                  fontWeight: '600',
-                  color: isDark ? '#A7D8FF' : '#0369A1',
-                }}>
-                  Cancel
-                </Text>
+                <Text style={[styles.personalizationCancelText, { color: COLORS.textLight }]}>Cancel</Text>
               </TouchableOpacity>
 
               <Pressable
@@ -1315,37 +1099,30 @@ const ProfileScreen = ({ navigation }) => {
                   editPersonalization.concern === originalPersonalization.concern &&
                   editPersonalization.supportStyle === originalPersonalization.supportStyle
                 )}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  paddingHorizontal: 16,
-                  borderRadius: 16,
-                  backgroundColor: (
-                    editPersonalization.role === originalPersonalization.role &&
-                    editPersonalization.concern === originalPersonalization.concern &&
-                    editPersonalization.supportStyle === originalPersonalization.supportStyle
-                  ) ? '#94A3B8' : '#60A5FA',
-                }}
+                style={[
+                  styles.personalizationSaveBtn,
+                  {
+                    backgroundColor: (
+                      editPersonalization.role === originalPersonalization.role &&
+                      editPersonalization.concern === originalPersonalization.concern &&
+                      editPersonalization.supportStyle === originalPersonalization.supportStyle
+                    ) ? COLORS.textLight : COLORS.primary
+                  }
+                ]}
               >
                 {savingPersonalization ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={{
-                    textAlign: 'center',
-                    fontSize: 15,
-                    fontWeight: '600',
-                    color: '#FFFFFF',
-                  }}>
-                    Save Changes
-                  </Text>
+                  <Text style={styles.personalizationSaveText}>Save Changes</Text>
                 )}
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
+
       <FloatingBottomNav activeTab="Profile" onTabPress={(tab) => navigation.navigate(tab)} />
-      </SafeAreaView>
+    </SafeAreaView>
   );
 };
 
@@ -1354,392 +1131,328 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.background,
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 16,
+    fontSize: 14,
+    color: COLORS.textLight,
   },
   screen: {
     flex: 1,
-    backgroundColor: '#F6F8FC',
+    backgroundColor: COLORS.background,
   },
   scrollContent: {
-    paddingBottom: 40,
     paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 10,
   },
-  
-  // Header / Hero Section
-  heroSection: {
+  header: {
+    marginBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    marginTop: 2,
+  },
+  profileCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  profileRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 32,
   },
   avatarContainer: {
     position: 'relative',
-    marginBottom: 16,
+    marginRight: 16,
   },
   avatarGradientBg: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#EAF2FF',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: `${COLORS.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#6C8EFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5,
+    overflow: 'hidden',
   },
   editBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#A98EFF',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    backgroundColor: COLORS.primary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#F6F8FC',
+    borderColor: COLORS.card,
   },
-  heroGreeting: {
-    fontSize: 26,
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 4,
+    color: COLORS.text,
   },
-  heroSubtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    marginBottom: 16,
-  },
-  statusPill: {
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.8)',
-  },
-  statusPillText: {
+  profileEmail: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#10B981',
+    color: COLORS.textLight,
+    marginTop: 2,
   },
-
-  // Generic Sections
+  editProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 4,
+  },
+  editProfileText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '500',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: COLORS.border,
+  },
   sectionContainer: {
-    marginBottom: 28,
+    marginBottom: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 12,
+    color: COLORS.text,
   },
   iconButton: {
     padding: 4,
   },
   emptyText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: COLORS.textLight,
     fontStyle: 'italic',
   },
-
-  // AI Companion Section
   aiChipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
   aiChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
   aiChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // Emotional Journey Section
-  emptyJourneyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  emptyJourneyText: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  timelineContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    minHeight: 50,
-  },
-  timelineNodeContainer: {
-    width: 20,
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  timelineNode: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#6C8EFF',
-    marginTop: 6,
-  },
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    backgroundColor: '#EAF2FF',
-    marginTop: 4,
-  },
-  timelineContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingBottom: 16,
-  },
-  timelineEmoji: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  timelineMood: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  timelineDate: {
     fontSize: 13,
-    color: '#6B7280',
-    marginTop: 2,
+    fontWeight: '500',
   },
-
-  // Safety Circle
   safetyCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 2,
   },
   safetyAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#EAF2FF',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${COLORS.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   safetyAvatarText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#6C8EFF',
+    color: COLORS.primary,
   },
   safetyInfo: {
     flex: 1,
   },
   safetyName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
+    color: COLORS.text,
   },
   safetyRelation: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 13,
+    color: COLORS.textLight,
+  },
+  safetyActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  safetyActionBtn: {
+    padding: 4,
   },
   safetyCtaCard: {
-    backgroundColor: '#EAF2FF',
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: `${COLORS.primary}08`,
+    borderRadius: 16,
+    padding: 20,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#CDE0FF',
+    borderColor: `${COLORS.primary}20`,
   },
   safetyCtaText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6C8EFF',
+    color: COLORS.primary,
+    marginTop: 8,
   },
-
-  // Account Card
-  accountCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-    position: 'relative',
+  safetyCtaSubtext: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginTop: 2,
   },
-  accountEditButton: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    zIndex: 10,
-  },
-  accountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  accountIcon: {
-    marginRight: 16,
-  },
-  accountLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  accountValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  accountDivider: {
-    height: 1,
-    backgroundColor: '#F3F4F6',
-    marginVertical: 12,
-    marginLeft: 36,
-  },
-
-  // Languages
   languageChipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   languageChip: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
   },
   languageChipActive: {
-    borderColor: '#6C8EFF',
-    backgroundColor: '#EAF2FF',
+    borderColor: COLORS.primary,
+    backgroundColor: `${COLORS.primary}10`,
   },
   languageChipText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
-    color: '#6B7280',
+    color: COLORS.textLight,
   },
   languageChipTextActive: {
-    color: '#6C8EFF',
+    color: COLORS.primary,
     fontWeight: '600',
   },
-
-  // Settings
   settingsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 2,
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
-  settingIcon: {
-    marginRight: 16,
+  settingIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   settingTextContainer: {
     flex: 1,
   },
   settingTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
-    color: '#1F2937',
-    marginBottom: 2,
+    color: COLORS.text,
   },
   settingSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: 12,
+    color: COLORS.textLight,
   },
   settingDivider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
-    marginLeft: 38,
+    backgroundColor: COLORS.border,
+    marginLeft: 48,
   },
-
-  // Logout
   logoutContainer: {
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 8,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    gap: 8,
+    paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#FCA5A5',
-    backgroundColor: '#FEF2F2',
+    borderColor: `${COLORS.danger}30`,
+    backgroundColor: `${COLORS.danger}08`,
   },
   logoutText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#EF4444',
+    color: COLORS.danger,
   },
-
-  // Modal styles remaining the same generally
   modalBackdrop: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   modalCard: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
     padding: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -1750,59 +1463,264 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: COLORS.text,
     marginBottom: 20,
     textAlign: 'center',
   },
   modalLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: COLORS.textLight,
     marginBottom: 8,
     fontWeight: '500',
   },
   modalInput: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: `${COLORS.primary}05`,
     borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#1F2937',
+    padding: 14,
+    fontSize: 15,
+    color: COLORS.text,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: `${COLORS.primary}20`,
   },
   modalInputError: {
-    borderColor: '#EF4444',
+    borderColor: COLORS.danger,
   },
   errorText: {
     fontSize: 12,
-    color: '#EF4444',
+    color: COLORS.danger,
     marginTop: 8,
   },
   modalActions: {
     flexDirection: 'row',
-    marginTop: 24,
+    marginTop: 20,
     gap: 12,
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: `${COLORS.textLight}10`,
   },
   saveButton: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#6C8EFF',
+    backgroundColor: COLORS.primary,
   },
   cancelText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#6B7280',
+    color: COLORS.textLight,
   },
   saveText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  contactModal: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 28,
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  contactModalHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  contactModalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 6,
+  },
+  contactModalSubtitle: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    textAlign: 'center',
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  contactInput: {
+    height: 52,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    fontWeight: '500',
+    borderWidth: 1.5,
+    borderColor: `${COLORS.primary}20`,
+  },
+  contactsBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+  },
+  contactModalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 16,
+  },
+  contactCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  contactCancelText: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  contactSaveBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
+  },
+  contactSaveText: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  contactsModalContainer: {
+    flex: 1,
+  },
+  contactsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  contactsModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 0.5,
+    borderBottomColor: COLORS.border,
+  },
+  contactItemAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  contactItemInitial: {
     fontSize: 16,
+    fontWeight: '600',
+  },
+  contactItemName: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  contactItemPhone: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    marginTop: 2,
+  },
+  personalizationModal: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 28,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  personalizationHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  personalizationTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 6,
+  },
+  personalizationSubtitle: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    textAlign: 'center',
+  },
+  personalizationLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  personalizationOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  personalizationChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  personalizationFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 16,
+  },
+  personalizationCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  personalizationCancelText: {
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  personalizationSaveBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 16,
+  },
+  personalizationSaveText: {
+    textAlign: 'center',
+    fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
   },

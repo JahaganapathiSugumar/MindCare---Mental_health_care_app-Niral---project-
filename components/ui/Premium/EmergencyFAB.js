@@ -1,27 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { View, DeviceEventEmitter, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Alert, Linking } from 'react-native';
+import { View, DeviceEventEmitter, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Alert, Linking, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import Modal from 'react-native-modal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, Easing as REasing } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
+import { getTrustedContact } from '../../../services/trustedContactService';
+import { getAuth_ } from '../../../firebase';
 
 const { width, height } = Dimensions.get('window');
 
-const THEME = {
-  bg: '#0B1220',
-  primary: '#3B82F6',
-  accent: '#38BDF8',
-  danger: '#EF4444',
-  text: '#FFFFFF',
-  textDim: '#94A3B8',
-  cardBg: 'rgba(255, 255, 255, 0.05)',
-  cardBorder: 'rgba(255, 255, 255, 0.1)',
+// Light color scheme
+const COLORS = {
+  background: '#F0F4F8',
+  card: '#FFFFFF',
+  primary: '#4A90D9',
+  success: '#2ECC71',
+  warning: '#F39C12',
+  danger: '#E74C3C',
+  text: '#2C3E50',
+  textLight: '#7F8C8D',
+  border: '#E8EDF2',
+  shadow: 'rgba(0,0,0,0.06)',
 };
 
 export default function EmergencyFAB() {
   const [isModalVisible, setModalVisible] = useState(false);
+  const [trustedContact, setTrustedContact] = useState(null);
+  const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
+  
   const pulseScale = useSharedValue(1);
   const pulseOpacity = useSharedValue(0.5);
   const scrollOpacity = useSharedValue(1);
@@ -35,13 +43,25 @@ export default function EmergencyFAB() {
     return () => scrollSub.remove();
   }, []);
 
+  useEffect(() => {
+    loadTrustedContact();
+  }, []);
+
+  const loadTrustedContact = async () => {
+    try {
+      const contact = await getTrustedContact();
+      setTrustedContact(contact);
+    } catch (error) {
+      console.error('Error loading trusted contact:', error);
+    }
+  };
+
   const scrollAnimatedStyle = useAnimatedStyle(() => {
     return {
       opacity: scrollOpacity.value,
       transform: [{ scale: scrollScale.value }]
     };
   });
-
 
   useEffect(() => {
     pulseScale.value = withRepeat(
@@ -73,24 +93,94 @@ export default function EmergencyFAB() {
     setModalVisible(!isModalVisible);
   };
 
-  const renderCard = (icon, title, description, buttonText, buttonColor = THEME.primary, onPress) => (
+  const handleCallTrustedContact = async () => {
+    try {
+      await loadTrustedContact();
+      
+      if (!trustedContact || !trustedContact.phone) {
+        Alert.alert(
+          'No Trusted Contact',
+          'You haven\'t added a trusted contact yet. Would you like to add one now?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Add Contact', 
+              onPress: () => {
+                setModalVisible(false);
+                navigation.navigate('Profile');
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      const cleanPhone = trustedContact.phone.replace(/\s/g, '');
+      
+      if (!cleanPhone || cleanPhone.length < 5) {
+        Alert.alert('Invalid Phone Number', 'The trusted contact phone number is invalid. Please update it in your profile.');
+        return;
+      }
+
+      Alert.alert(
+        `Call ${trustedContact.name}?`,
+        `You are about to call your trusted contact: ${trustedContact.name}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Call Now', 
+            onPress: async () => {
+              try {
+                const phoneUrl = Platform.select({
+                  ios: `tel:${cleanPhone}`,
+                  android: `tel:${cleanPhone}`,
+                });
+                
+                const canOpen = await Linking.canOpenURL(phoneUrl);
+                if (canOpen) {
+                  await Linking.openURL(phoneUrl);
+                  setModalVisible(false);
+                } else {
+                  Alert.alert('Error', 'Unable to make a call from this device.');
+                }
+              } catch (error) {
+                console.error('Error making call:', error);
+                Alert.alert('Error', 'Failed to make the call. Please try again.');
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error calling trusted contact:', error);
+      Alert.alert('Error', 'Failed to call trusted contact. Please try again.');
+    }
+  };
+
+  const renderCard = (icon, title, description, buttonText, buttonColor = COLORS.primary, onPress) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <View style={styles.iconContainer}>
-          <Text style={{ fontSize: 24 }}>{icon}</Text>
+        <View style={[styles.iconContainer, { backgroundColor: `${buttonColor}15` }]}>
+          <Text style={{ fontSize: 22 }}>{icon}</Text>
         </View>
         <View style={styles.cardTextContainer}>
           <Text style={styles.cardTitle}>{title}</Text>
           <Text style={styles.cardDesc}>{description}</Text>
+          {trustedContact && (
+            <View style={styles.contactInfo}>
+              <MaterialCommunityIcons name="account" size={14} color={COLORS.textLight} />
+              <Text style={styles.contactName}>{trustedContact.name}</Text>
+              <Text style={styles.contactPhone}>• {trustedContact.phone}</Text>
+            </View>
+          )}
         </View>
       </View>
       <TouchableOpacity 
         style={[styles.cardButton, { backgroundColor: buttonColor }]}
-        onPress={() => {
-          onPress?.();
-          setModalVisible(false);
-        }}
+        onPress={onPress}
+        activeOpacity={0.8}
       >
+        <MaterialCommunityIcons name="phone" size={18} color="#FFFFFF" />
         <Text style={styles.cardButtonText}>{buttonText}</Text>
       </TouchableOpacity>
     </View>
@@ -101,7 +191,7 @@ export default function EmergencyFAB() {
       <Animated.View style={[styles.fabContainer, scrollAnimatedStyle]}>
         <Animated.View style={[styles.fabGlow, animatedPulseStyle]} />
         <TouchableOpacity style={styles.fab} onPress={toggleModal} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="shield-heart" size={26} color="#FFFFFF" />
+          <MaterialCommunityIcons name="shield-check" size={24} color="#FFFFFF" />
           <Text style={styles.fabText}>SOS</Text>
         </TouchableOpacity>
       </Animated.View>
@@ -117,17 +207,19 @@ export default function EmergencyFAB() {
         animationOut="slideOutDown"
         useNativeDriverForBackdrop
       >
-        <BlurView intensity={80} tint="dark" style={styles.modalContent}>
+        <BlurView intensity={90} tint="light" style={styles.modalContent}>
           <View style={styles.dragIndicator} />
           
           <View style={styles.header}>
-            <MaterialCommunityIcons name="shield-check" size={48} color={THEME.primary} />
+            <View style={[styles.headerIconWrapper, { backgroundColor: `${COLORS.primary}15` }]}>
+              <MaterialCommunityIcons name="shield-check" size={40} color={COLORS.primary} />
+            </View>
             <Text style={styles.headerTitle}>Emergency Support</Text>
             <Text style={styles.headerSubtitle}>Need help? We're here for you.</Text>
             
             <View style={styles.statusBadge}>
               <View style={styles.statusDot} />
-              <Text style={styles.statusText}>{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • Location Active</Text>
+              <Text style={styles.statusText}>Available • {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
             </View>
           </View>
 
@@ -137,66 +229,36 @@ export default function EmergencyFAB() {
           >
             {renderCard(
               '👤',
-              'Call Trusted Contact',
-              'Instantly call a trusted person from your Safety Circle.',
+              trustedContact ? `Call ${trustedContact.name}` : 'Call Trusted Contact',
+              trustedContact 
+                ? `Instantly call your trusted contact for support.` 
+                : 'Add a trusted contact in your profile to enable emergency calls.',
               'Call Now',
-              THEME.primary,
-              () => { Alert.alert('Calling Trusted Contact', 'This would dial your trusted contact.'); }
+              trustedContact ? COLORS.primary : COLORS.textLight,
+              handleCallTrustedContact
             )}
 
-            {renderCard(
-              '🆘',
-              'Send SOS Alert',
-              'Send your live location and an emergency message to all trusted contacts.',
-              'Send SOS',
-              THEME.danger,
-              () => { Alert.alert('SOS Sent', 'An alert has been dispatched to your trusted contacts.'); }
-            )}
-
-            {renderCard(
-              '☎️',
-              'Crisis Helpline',
-              'Call your country\'s mental health crisis helpline.',
-              'Call Helpline',
-              THEME.primary,
-              () => { Alert.alert('Helpline', 'Calling 988...'); }
-            )}
-
-            {renderCard(
-              '📍',
-              'Share Live Location',
-              'Share real-time location with trusted contacts for a configurable duration.',
-              'Share Location',
-              THEME.primary,
-              () => { Alert.alert('Location Shared', 'Your live location is now being shared.'); }
-            )}
-
-            {renderCard(
-              '🤖',
-              'Emergency AI Support',
-              'Start an AI-guided calming conversation with grounding exercises.',
-              'Start Emergency Chat',
-              THEME.accent,
-              () => { navigation.navigate('Chat'); }
-            )}
-
-            {renderCard(
-              '🫁',
-              'Guided Calming',
-              '4-7-8 Breathing, Box Breathing, and Panic Recovery.',
-              'Start Breathing',
-              '#10B981',
-              () => { navigation.navigate('GuidedBreathing'); }
+            {!trustedContact && (
+              <TouchableOpacity 
+                style={styles.addContactBtn}
+                onPress={() => {
+                  setModalVisible(false);
+                  navigation.navigate('Profile');
+                }}
+              >
+                <MaterialCommunityIcons name="account-plus" size={20} color={COLORS.primary} />
+                <Text style={styles.addContactBtnText}>Add Trusted Contact</Text>
+              </TouchableOpacity>
             )}
 
             <View style={styles.privacyBanner}>
-              <MaterialCommunityIcons name="lock" size={14} color={THEME.textDim} />
+              <MaterialCommunityIcons name="lock" size={16} color={COLORS.textLight} />
               <Text style={styles.privacyText}>
                 Your emergency information is encrypted and shared only with your trusted contacts when you choose or when emergency features are activated.
               </Text>
             </View>
             
-            <View style={{ height: 40 }} />
+            <View style={{ height: 20 }} />
           </ScrollView>
         </BlurView>
       </Modal>
@@ -208,44 +270,44 @@ const styles = StyleSheet.create({
   fabContainer: {
     position: 'absolute',
     bottom: 110,
-    right: 24,
-    width: 64,
-    height: 64,
+    right: 20,
+    width: 60,
+    height: 60,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 9999,
   },
   fabGlow: {
     position: 'absolute',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#3B82F6',
-    shadowColor: '#3B82F6',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 15,
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
   },
   fab: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#2563EB',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   fabText: {
     color: '#FFF',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
-    marginTop: 2,
+    marginTop: 1,
     letterSpacing: 1,
   },
   modal: {
@@ -253,45 +315,50 @@ const styles = StyleSheet.create({
     margin: 0,
   },
   modalContent: {
-    height: height * 0.75,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    height: height * 0.7,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     paddingTop: 12,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(11, 18, 32, 0.75)',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     overflow: 'hidden',
-    borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
   dragIndicator: {
     width: 40,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.border,
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  headerIconWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   headerTitle: {
-    color: THEME.text,
-    fontSize: 24,
+    color: COLORS.text,
+    fontSize: 22,
     fontWeight: '700',
-    marginTop: 12,
     marginBottom: 4,
   },
   headerSubtitle: {
-    color: THEME.textDim,
-    fontSize: 15,
-    marginBottom: 16,
+    color: COLORS.textLight,
+    fontSize: 14,
+    marginBottom: 12,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: 12,
+    backgroundColor: `${COLORS.success}15`,
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
   },
@@ -299,74 +366,112 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10B981',
+    backgroundColor: COLORS.success,
     marginRight: 6,
   },
   statusText: {
-    color: '#10B981',
+    color: COLORS.success,
     fontSize: 12,
     fontWeight: '600',
   },
   scrollContent: {
-    paddingBottom: 40,
-    gap: 16,
+    paddingBottom: 20,
+    gap: 12,
   },
   card: {
-    backgroundColor: THEME.cardBg,
-    borderRadius: 24,
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: THEME.cardBorder,
+    borderColor: COLORS.border,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
+    alignItems: 'flex-start',
+    marginBottom: 14,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 14,
   },
   cardTextContainer: {
     flex: 1,
   },
   cardTitle: {
-    color: THEME.text,
-    fontSize: 18,
+    color: COLORS.text,
+    fontSize: 16,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   cardDesc: {
-    color: THEME.textDim,
+    color: COLORS.textLight,
     fontSize: 13,
     lineHeight: 18,
   },
-  cardButton: {
-    paddingVertical: 12,
-    borderRadius: 16,
+  contactInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 6,
+    gap: 4,
+  },
+  contactName: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  contactPhone: {
+    color: COLORS.textLight,
+    fontSize: 12,
+  },
+  cardButton: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   cardButtonText: {
-    color: '#FFF',
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  addContactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: `${COLORS.primary}10`,
+    borderWidth: 1,
+    borderColor: `${COLORS.primary}30`,
+  },
+  addContactBtnText: {
+    color: COLORS.primary,
+    fontSize: 14,
     fontWeight: '600',
   },
   privacyBanner: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    padding: 16,
-    borderRadius: 16,
-    marginTop: 8,
-    gap: 12,
+    backgroundColor: `${COLORS.textLight}08`,
+    padding: 14,
+    borderRadius: 14,
+    gap: 10,
+    alignItems: 'flex-start',
   },
   privacyText: {
     flex: 1,
-    color: THEME.textDim,
+    color: COLORS.textLight,
     fontSize: 12,
     lineHeight: 18,
   }

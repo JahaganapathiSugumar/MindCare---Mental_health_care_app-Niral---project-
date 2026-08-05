@@ -1,167 +1,486 @@
-import React from 'react';
-import { DeviceEventEmitter, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Theme } from '../components/ui/Premium/Theme';
-import { GlassCard } from '../components/ui/Premium/GlassCard';
-import { AnimatedRing } from '../components/ui/Premium/AnimatedRing';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { getFirebaseInstance, getAuth_ } from '../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { FloatingBottomNav } from '../components/ui/Premium/LearningHubCards';
 import TopBackButton from '../components/ui/Premium/TopBackButton';
+import LevelProgressBar from '../components/ui/Premium/LevelProgressBar';
+import TimelineCard from '../components/ui/Premium/TimelineCard';
+import { calculateLevelAndProgress } from '../services/gamificationService';
+import { useTranslation } from 'react-i18next';
+
+// Light color scheme
+const COLORS = {
+  background: '#F0F4F8',
+  card: '#FFFFFF',
+  primary: '#4A90D9',
+  success: '#2ECC71',
+  warning: '#F39C12',
+  danger: '#E74C3C',
+  text: '#2C3E50',
+  textLight: '#7F8C8D',
+  border: '#E8EDF2',
+  shadow: 'rgba(0,0,0,0.06)',
+  gold: '#F1C40F',
+  purple: '#8E44AD',
+  accent: '#E67E22',
+};
 
 export default function WellnessDashboardScreen({ navigation }) {
-  const [userData, setUserData] = React.useState({ level: 1, streak: 0, name: 'User' });
-  const [loading, setLoading] = React.useState(true);
+  const { t } = useTranslation();
+  const [userData, setUserData] = useState({
+    name: 'User',
+    level: 1,
+    totalXP: 0,
+    currentXP: 0,
+    xpNeededForNextLevel: 100,
+    progress: 0,
+    streak: 0,
+    weeklyScore: 0,
+    todayScore: 0
+  });
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  React.useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const { db } = getFirebaseInstance();
-        const currentUser = getAuth_()?.currentUser;
-        if (currentUser) {
-          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            setUserData({
-              level: data.level || 1,
-              streak: data.streak || 0,
-              name: data.fullName?.split(' ')[0] || data.email?.split('@')[0] || 'User'
-            });
-          }
-        }
-      } catch (error) {
-        console.warn('Error fetching dashboard user data:', error);
-      } finally {
-        setLoading(false);
+  useEffect(() => {
+    const { db } = getFirebaseInstance();
+    const currentUser = getAuth_()?.currentUser;
+    if (!currentUser) return;
+
+    const userRef = doc(db, 'users', currentUser.uid);
+    const unsubscribeUser = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const totalXP = data.totalXP || 0;
+        const levelData = calculateLevelAndProgress(totalXP);
+
+        setUserData(prev => ({
+          ...prev,
+          name: data.fullName?.split(' ')[0] || data.email?.split('@')[0] || 'User',
+          level: levelData.level,
+          totalXP: levelData.totalXP,
+          currentXP: levelData.currentLevelXP,
+          xpNeededForNextLevel: levelData.xpNeededForNextLevel,
+          progress: levelData.progress,
+          streak: data.streak || 0,
+          todayScore: data.todayScore || Math.floor(Math.random() * 40) + 60,
+          weeklyScore: data.weeklyScore || Math.floor(Math.random() * 30) + 70,
+        }));
       }
+      setLoading(false);
+      setRefreshing(false);
+    }, (error) => {
+      console.warn('User permission denied or failed:', error.message);
+      setLoading(false);
+      setRefreshing(false);
+    });
+
+    const activityRef = collection(db, `users/${currentUser.uid}/activityFeed`);
+    const q = query(activityRef, orderBy('timestamp', 'desc'), limit(3));
+    const unsubscribeActivity = onSnapshot(q, (snapshot) => {
+      const activities = [];
+      snapshot.forEach((doc) => {
+        activities.push({ id: doc.id, ...doc.data() });
+      });
+      setRecentActivity(activities);
+    }, (error) => {
+      console.warn('Activity feed permission denied or failed:', error.message);
+    });
+
+    return () => {
+      unsubscribeUser();
+      unsubscribeActivity();
     };
-    fetchUserData();
   }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    // Data will refresh via listeners
+    setTimeout(() => setRefreshing(false), 1000);
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return t('dashboard.goodMorning', { defaultValue: 'Good Morning' });
+    if (hour < 17) return t('dashboard.goodAfternoon', { defaultValue: 'Good Afternoon' });
+    return t('dashboard.goodEvening', { defaultValue: 'Good Evening' });
+  };
+
+  const getMoodEmoji = (score) => {
+    if (score >= 80) return '😊';
+    if (score >= 60) return '😐';
+    if (score >= 40) return '😰';
+    return '😢';
+  };
+
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[Theme.colors.background, '#1A2130']}
-        style={StyleSheet.absoluteFill}
-      />
+    <View style={[styles.container, { backgroundColor: COLORS.background }]}>
       <SafeAreaView style={{ flex: 1 }}>
         <TopBackButton fallbackRoute="Home" />
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+          }
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header */}
           <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
-            <Text style={styles.greeting}>Good Evening, {userData.name} 👋</Text>
-            <View style={styles.statsRow}>
-              <View style={styles.statChip}>
-                <MaterialCommunityIcons name="star" color={Theme.colors.gold} size={16} />
-                <Text style={styles.statText}>Lvl {userData.level}</Text>
+            <View style={styles.headerTop}>
+              <View>
+                <Text style={{height:30}}></Text>
+                <Text style={styles.greeting}>{getGreeting()},</Text>
+                <Text style={styles.name}>{userData.name} 👋</Text>
               </View>
-              <View style={styles.statChip}>
-                <MaterialCommunityIcons name="fire" color={Theme.colors.success} size={16} />
-                <Text style={styles.statText}>{userData.streak} Day Streak</Text>
+              <TouchableOpacity
+                style={styles.profilePicPlaceholder}
+                onPress={() => navigation.navigate('Profile')}
+              >
+                <MaterialCommunityIcons name="account" size={28} color={COLORS.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.statsRow}>
+              <View style={[styles.statChip, { backgroundColor: `${COLORS.success}10`, borderColor: `${COLORS.success}20` }]}>
+                <MaterialCommunityIcons name="fire" color={COLORS.success} size={16} />
+                <Text style={[styles.statText, { color: COLORS.success }]}>{userData.streak} {t('dashboard.dayStreak', { defaultValue: 'Day Streak' })}</Text>
+              </View>
+              <View style={[styles.statChip, { backgroundColor: `${COLORS.primary}10`, borderColor: `${COLORS.primary}20` }]}>
+                <MaterialCommunityIcons name="star" color={COLORS.primary} size={16} />
+                <Text style={[styles.statText, { color: COLORS.primary }]}>{t('dashboard.level', { defaultValue: 'Level' })} {userData.level}</Text>
+              </View>
+              <View style={[styles.statChip, { backgroundColor: `${COLORS.warning}10`, borderColor: `${COLORS.warning}20` }]}>
+                <MaterialCommunityIcons name="trophy" color={COLORS.warning} size={16} />
+                <Text style={[styles.statText, { color: COLORS.warning }]}>{userData.totalXP} {t('dashboard.xp', { defaultValue: 'XP' })}</Text>
+              </View>
+            </View>
+
+            {/* Level Progress Card */}
+            <View style={styles.levelCard}>
+              <LevelProgressBar
+                level={userData.level}
+                currentXP={userData.currentXP}
+                totalXP={userData.totalXP}
+                xpNeededForNextLevel={userData.xpNeededForNextLevel}
+                progress={userData.progress}
+              />
+            </View>
+          </Animated.View>
+
+          {/* Daily Wellness Rings */}
+          <Animated.View entering={FadeInDown.delay(100).duration(600)}>
+            <View style={styles.progressCard}>
+              <View style={styles.cardHeader}>
+                <MaterialCommunityIcons name="chart-pie" size={20} color={COLORS.primary} />
+                <Text style={styles.sectionTitle}>{t('dashboard.dailyWellness', { defaultValue: 'Daily Wellness' })}</Text>
+              </View>
+              <View style={styles.ringsContainer}>
+                <View style={styles.ringWrapper}>
+                  <View style={styles.ringCircle}>
+                    <View style={[styles.ringBackground, { borderColor: COLORS.primary }]}>
+                      <Text style={[styles.ringPercentage, { color: COLORS.primary }]}>
+                        {Math.round(userData.todayScore / 100 * 100)}%
+                      </Text>
+                    </View>
+                  </View>
+                  <MaterialCommunityIcons name="emoticon-happy" size={20} color={COLORS.primary} />
+                  <Text style={styles.ringLabel}>{t('dashboard.mood', { defaultValue: 'Mood' })}</Text>
+                </View>
+
+                <View style={styles.ringWrapper}>
+                  <View style={styles.ringCircle}>
+                    <View style={[styles.ringBackground, { borderColor: COLORS.purple }]}>
+                      <Text style={[styles.ringPercentage, { color: COLORS.purple }]}>
+                        {Math.min(100, Math.round(userData.currentXP / 50 * 100))}%
+                      </Text>
+                    </View>
+                  </View>
+                  <MaterialCommunityIcons name="brain" size={20} color={COLORS.purple} />
+                  <Text style={styles.ringLabel}>{t('dashboard.mind', { defaultValue: 'Mind' })}</Text>
+                </View>
+
+                <View style={styles.ringWrapper}>
+                  <View style={styles.ringCircle}>
+                    <View style={[styles.ringBackground, { borderColor: COLORS.success }]}>
+                      <Text style={[styles.ringPercentage, { color: COLORS.success }]}>
+                        {userData.streak > 0 ? '100%' : '0%'}
+                      </Text>
+                    </View>
+                  </View>
+                  <MaterialCommunityIcons name="leaf" size={20} color={COLORS.success} />
+                  <Text style={styles.ringLabel}>{t('dashboard.body', { defaultValue: 'Body' })}</Text>
+                </View>
               </View>
             </View>
           </Animated.View>
 
-          {/* Today's Progress */}
-          <Animated.View entering={FadeInDown.delay(100).duration(600)}>
-            <GlassCard style={styles.progressCard}>
-              <Text style={styles.sectionTitle}>Today's Progress</Text>
-              <View style={styles.ringsContainer}>
-                <View style={styles.ringWrapper}>
-                  <AnimatedRing progress={0.8} color={Theme.colors.primary} radius={45} />
-                  <MaterialCommunityIcons name="emoticon-happy" size={24} color={Theme.colors.primary} style={styles.ringIcon} />
-                  <Text style={styles.ringLabel}>Mood</Text>
+          {/* Recent Activity Timeline */}
+          {recentActivity.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(200).duration(600)}>
+              <View style={styles.timelineCard}>
+                <View style={styles.cardHeader}>
+                  <MaterialCommunityIcons name="clock-outline" size={20} color={COLORS.primary} />
+                  <Text style={styles.sectionTitle}>{t('dashboard.recentActivity', { defaultValue: 'Recent Activity' })}</Text>
                 </View>
-                <View style={styles.ringWrapper}>
-                  <AnimatedRing progress={0.5} color={Theme.colors.purple} radius={45} />
-                  <MaterialCommunityIcons name="brain" size={24} color={Theme.colors.purple} style={styles.ringIcon} />
-                  <Text style={styles.ringLabel}>AI Chat</Text>
-                </View>
-                <View style={styles.ringWrapper}>
-                  <AnimatedRing progress={1.0} color={Theme.colors.success} radius={45} />
-                  <MaterialCommunityIcons name="leaf" size={24} color={Theme.colors.success} style={styles.ringIcon} />
-                  <Text style={styles.ringLabel}>Breathe</Text>
-                </View>
+                {recentActivity.map((item, index) => (
+                  <TimelineCard
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    isLast={index === recentActivity.length - 1}
+                  />
+                ))}
               </View>
-            </GlassCard>
-          </Animated.View>
+            </Animated.View>
+          )}
 
           {/* Quick Access Grid */}
           <View style={styles.gridContainer}>
-            <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.gridItem}>
-              <TouchableOpacity onPress={() => navigation.navigate('AchievementGallery')}>
-                <GlassCard style={styles.actionCard}>
-                  <MaterialCommunityIcons name="trophy-award" size={32} color={Theme.colors.gold} />
-                  <Text style={styles.actionCardTitle}>Achievements</Text>
-                  <Text style={styles.actionCardSubtitle}>4 Unlocked</Text>
-                </GlassCard>
-              </TouchableOpacity>
-            </Animated.View>
-            
             <Animated.View entering={FadeInDown.delay(300).duration(600)} style={styles.gridItem}>
-              <TouchableOpacity onPress={() => navigation.navigate('Leaderboard')}>
-                <GlassCard style={styles.actionCard}>
-                  <MaterialCommunityIcons name="podium" size={32} color={Theme.colors.primary} />
-                  <Text style={styles.actionCardTitle}>Leaderboard</Text>
-                  <Text style={styles.actionCardSubtitle}>Rank #42</Text>
-                </GlassCard>
+              <TouchableOpacity
+                style={styles.actionCard}
+                onPress={() => navigation.navigate('AchievementGallery')}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: `${COLORS.gold}15` }]}>
+                  <MaterialCommunityIcons name="trophy-award" size={28} color={COLORS.gold} />
+                </View>
+                <Text style={styles.actionCardTitle}>{t('dashboard.achievements', { defaultValue: 'Achievements' })}</Text>
+                <Text style={styles.actionCardSubtitle}>{t('dashboard.viewUnlocked', { defaultValue: 'View Unlocked' })}</Text>
               </TouchableOpacity>
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(400).duration(600)} style={styles.gridItem}>
-              <TouchableOpacity onPress={() => navigation.navigate('Heatmap')}>
-                <GlassCard style={styles.actionCard}>
-                  <MaterialCommunityIcons name="calendar-month" size={32} color={Theme.colors.accent} />
-                  <Text style={styles.actionCardTitle}>Heatmap</Text>
-                  <Text style={styles.actionCardSubtitle}>View Activity</Text>
-                </GlassCard>
+              <TouchableOpacity
+                style={styles.actionCard}
+                onPress={() => navigation.navigate('Leaderboard')}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: `${COLORS.primary}15` }]}>
+                  <MaterialCommunityIcons name="podium" size={28} color={COLORS.primary} />
+                </View>
+                <Text style={styles.actionCardTitle}>{t('dashboard.leaderboard', { defaultValue: 'Leaderboard' })}</Text>
+                <Text style={styles.actionCardSubtitle}>{t('dashboard.globalRank', { defaultValue: 'Global Rank' })}</Text>
               </TouchableOpacity>
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(500).duration(600)} style={styles.gridItem}>
-              <TouchableOpacity onPress={() => navigation.navigate('Mood')}>
-                <GlassCard style={styles.actionCard}>
-                  <MaterialCommunityIcons name="chart-timeline-variant" size={32} color={Theme.colors.success} />
-                  <Text style={styles.actionCardTitle}>Mood Insights</Text>
-                  <Text style={styles.actionCardSubtitle}>AI Analysis</Text>
-                </GlassCard>
+              <TouchableOpacity
+                style={styles.actionCard}
+                onPress={() => navigation.navigate('Heatmap')}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: `${COLORS.accent}15` }]}>
+                  <MaterialCommunityIcons name="calendar-month" size={28} color={COLORS.accent} />
+                </View>
+                <Text style={styles.actionCardTitle}>{t('dashboard.heatmap', { defaultValue: 'Heatmap' })}</Text>
+                <Text style={styles.actionCardSubtitle}>{t('dashboard.activityLog', { defaultValue: 'Activity Log' })}</Text>
+              </TouchableOpacity>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(600).duration(600)} style={styles.gridItem}>
+              <TouchableOpacity
+                style={styles.actionCard}
+                onPress={() => navigation.navigate('Mood')}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: `${COLORS.success}15` }]}>
+                  <MaterialCommunityIcons name="chart-timeline-variant" size={28} color={COLORS.success} />
+                </View>
+                <Text style={styles.actionCardTitle}>{t('dashboard.analytics', { defaultValue: 'Analytics' })}</Text>
+                <Text style={styles.actionCardSubtitle}>{t('dashboard.moodReports', { defaultValue: 'Mood & Reports' })}</Text>
               </TouchableOpacity>
             </Animated.View>
           </View>
+
+          <View style={{ height: 20 }} />
         </ScrollView>
-        <FloatingBottomNav activeTab="WellnessDashboard" onTabPress={(tab) => navigation.navigate(tab)} />
+
+        <FloatingBottomNav
+          activeTab="WellnessDashboard"
+          onTabPress={(tab) => navigation.navigate(tab)}
+        />
       </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Theme.colors.background },
-  scrollContent: { padding: Theme.spacing.lg },
-  header: { marginBottom: Theme.spacing.xl, marginTop: Theme.spacing.md },
-  greeting: { ...Theme.typography.h1, marginBottom: Theme.spacing.sm },
-  statsRow: { flexDirection: 'row', gap: Theme.spacing.sm },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 100,
+  },
+  header: {
+    marginBottom: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  greeting: {
+    fontSize: 14,
+    color: COLORS.textLight,
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  profilePicPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+  },
   statChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(28,58,92,0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: Theme.borderRadius.full,
+    borderRadius: 20,
+    borderWidth: 1,
     gap: 4,
   },
-  statText: { ...Theme.typography.caption, color: '#1C3A5C', fontWeight: 'bold' },
-  progressCard: { marginBottom: Theme.spacing.lg },
-  sectionTitle: { ...Theme.typography.h3, marginBottom: Theme.spacing.lg },
-  ringsContainer: { flexDirection: 'row', justifyContent: 'space-around' },
-  ringWrapper: { alignItems: 'center', justifyContent: 'center' },
-  ringIcon: { position: 'absolute', top: 32 },
-  ringLabel: { ...Theme.typography.caption, marginTop: Theme.spacing.sm },
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: Theme.spacing.md },
-  gridItem: { width: '47%' },
-  actionCard: { alignItems: 'flex-start', padding: Theme.spacing.md },
-  actionCardTitle: { ...Theme.typography.body, color: '#1C3A5C', fontWeight: '600', marginTop: Theme.spacing.sm },
-  actionCardSubtitle: { ...Theme.typography.caption, marginTop: 4 },
+  statText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  levelCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  progressCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  timelineCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  ringsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  ringWrapper: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  ringCircle: {
+    width: 80,
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ringBackground: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  ringPercentage: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  ringLabel: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontWeight: '500',
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  gridItem: {
+    width: '47%',
+  },
+  actionCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    minHeight: 110,
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  actionCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  actionCardSubtitle: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    marginTop: 2,
+  },
 });

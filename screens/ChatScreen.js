@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { addXP, updateStreak, XP_REWARDS } from '../services/xpService';
 import {
   ActivityIndicator,
   Alert,
@@ -12,13 +13,16 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  DeviceEventEmitter,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { ensureAuthInitialized } from '../firebase';
+import { ensureAuthInitialized, getAuth_ } from '../firebase';
 import { sendMessageToAI } from '../services/apiService';
 import { fetchChatHistory, saveAIMoodEntry, saveChatMessage, saveMoodRecoveryScore } from '../services/chatService';
+import { saveMoodFromChat, extractMoodFromText } from '../services/moodExtractionService';
+import { updateAchievement } from '../services/gamificationService';
 import MoodRecoveryCard from '../components/MoodRecoveryCard';
 import SuggestionsPanel from '../components/SuggestionsPanel';
 import { useTheme } from '../context/ThemeContext';
@@ -50,7 +54,6 @@ const toStartOfDay = (dateValue) => {
   if (Number.isNaN(date.getTime())) {
     return null;
   }
-
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 };
 
@@ -121,7 +124,7 @@ const ChatScreen = ({ navigation, route }) => {
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 120);
-  }, [t]);
+  }, []);
 
   const loadChatHistory = useCallback(async () => {
     try {
@@ -171,7 +174,7 @@ const ChatScreen = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadChatHistory();
@@ -292,13 +295,12 @@ const ChatScreen = ({ navigation, route }) => {
 
     try {
       await Haptics.selectionAsync();
-    } catch (_error) {
-      // Ignore haptics failures on unsupported devices.
-    }
+    } catch (_error) { }
 
+    const userMessageText = inputText.trim();
     const userMessage = {
       _id: Math.random().toString(36).substring(2),
-      text: inputText.trim(),
+      text: userMessageText,
       createdAt: new Date(),
       sender: 'user',
       senderName: userEmail,
@@ -309,14 +311,27 @@ const ChatScreen = ({ navigation, route }) => {
     setSending(true);
 
     try {
-      const result = await sendMessageToAI(currentUser._id, userMessage.text, language);
+      const currentUserAuth = getAuth_()?.currentUser;
+      if (currentUserAuth) {
+        const extractedMood = await saveMoodFromChat(userMessageText, currentUserAuth.uid);
+        console.log('[ChatScreen] Mood extracted and saved:', extractedMood);
+        
+        if (extractedMood) {
+          DeviceEventEmitter.emit('moodUpdated', { 
+            mood: extractedMood, 
+            source: 'chat',
+            timestamp: new Date()
+          });
+          console.log('[ChatScreen] Mood update event emitted for:', extractedMood);
+        }
+      }
+
+      const result = await sendMessageToAI(currentUser._id, userMessageText, language);
 
       if (result.success) {
         try {
           await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        } catch (_error) {
-          // Ignore haptics failures on unsupported devices.
-        }
+        } catch (_error) { }
 
         const aiMessage = {
           _id: Math.random().toString(36).substring(2),
@@ -369,21 +384,42 @@ const ChatScreen = ({ navigation, route }) => {
           }
 
           await saveChatMessage(
-            userMessage.text,
+            userMessageText,
             result.response,
             detectedMood,
             Array.isArray(result.suggestions) ? result.suggestions : []
           );
           await saveAIMoodEntry(detectedMood);
+          
+          // Gamification and XP updates
+          if (currentUserAuth) {
+            await updateAchievement(currentUserAuth.uid, 'first_ai_chat');
+            await updateAchievement(currentUserAuth.uid, 'chat_master');
+            
+            // Add XP for AI chat
+            const xpResult = await addXP(currentUserAuth.uid, XP_REWARDS.AI_CHAT, 'chat');
+            console.log('XP added:', xpResult);
+            
+            // Update streak
+            const streakResult = await updateStreak(currentUserAuth.uid);
+            console.log('Streak updated:', streakResult);
+            
+            // If level up, show notification
+            if (xpResult.leveledUp) {
+              Alert.alert(
+                t('gamification.levelUpTitle', { defaultValue: '🎉 Level Up!' }),
+                t('gamification.levelUpMessage', { level: xpResult.newLevel, defaultValue: `You've reached Level ${xpResult.newLevel}! Keep going!` }),
+                [{ text: t('common.awesome', { defaultValue: 'Awesome!' }) }]
+              );
+            }
+          }
         } catch (saveError) {
           console.warn('[ChatScreen] Failed to save to Firestore:', saveError.message);
         }
       } else {
         try {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        } catch (_error) {
-          // Ignore haptics failures on unsupported devices.
-        }
+        } catch (_error) { }
 
         const errorMessage = {
           _id: Math.random().toString(36).substring(2),
@@ -400,9 +436,7 @@ const ChatScreen = ({ navigation, route }) => {
       console.error('[ChatScreen] Send error:', error.message || error);
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      } catch (_error) {
-        // Ignore haptics failures on unsupported devices.
-      }
+      } catch (_error) { }
       Alert.alert(t('auth.genericError', { defaultValue: 'Error' }), t('chat.sendError'));
     } finally {
       setSending(false);
@@ -417,9 +451,7 @@ const ChatScreen = ({ navigation, route }) => {
       setInputText(suggestion);
       try {
         await Haptics.selectionAsync();
-      } catch (_error) {
-        // Ignore haptics failures on unsupported devices.
-      }
+      } catch (_error) { }
 
       setTimeout(() => {
         inputRef.current?.focus();
@@ -444,24 +476,32 @@ const ChatScreen = ({ navigation, route }) => {
           ]}
         >
           <Text style={[styles.messageText, isUserMessage ? styles.userText : [styles.aiText, { color: theme.text }]]}>{item.text}</Text>
-          
-          {/* RAG Badge */}
+
+          {isUserMessage && item.text && (
+            <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialCommunityIcons name="emoticon-outline" size={12} color="rgba(255,255,255,0.6)" />
+              <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginLeft: 4 }}>
+                {t('chat.moodPrefix', { defaultValue: 'Mood:' })} {extractMoodFromText(item.text)}
+              </Text>
+            </View>
+          )}
+
           {!isUserMessage && item.ragData?.usingRag ? (
             <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.border }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <MaterialCommunityIcons name="book-open-variant" size={14} color="#2A7FBF" />
                 <Text style={{ fontSize: 12, color: '#2A7FBF', marginLeft: 4, fontWeight: '500' }}>
-                  Knowledge Base
+                  {t('chat.knowledgeBase', { defaultValue: 'Knowledge Base' })}
                 </Text>
               </View>
               {item.ragData?.sources?.length > 0 && (
                 <Text style={{ fontSize: 11, color: theme.mutedText, marginTop: 4 }}>
-                  Based on {item.ragData.sources.length} source{item.ragData.sources.length > 1 ? 's' : ''}
+                  {t('chat.basedOnSources', { count: item.ragData.sources.length, defaultValue: `Based on ${item.ragData.sources.length} source${item.ragData.sources.length > 1 ? 's' : ''}` })}
                 </Text>
               )}
             </View>
           ) : null}
-          
+
           <Text style={[styles.timestamp, isUserMessage ? styles.userTimestamp : [styles.aiTimestamp, { color: theme.mutedText }]]}>
             {formatMessageTime(item.createdAt)}
           </Text>
@@ -507,109 +547,107 @@ const ChatScreen = ({ navigation, route }) => {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.container, { backgroundColor: theme.background }]}>
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
         <Animated.View style={{ flex: 1, opacity: themeFadeAnim }}>
-        <View style={[styles.headerCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
-          <Pressable
-            onPress={async () => {
-              try {
-                await Haptics.selectionAsync();
-              } catch (_error) {
-                // Ignore haptics failures on unsupported devices.
-              }
-              navigation.goBack();
-            }}
-            style={[styles.backButton, { backgroundColor: isDark ? '#252B33' : '#EEF6FC' }]}
-          >
-            <Ionicons name="arrow-back" size={20} color={theme.text} />
-          </Pressable>
+          <View style={[styles.headerCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
+            <Pressable
+              onPress={async () => {
+                try {
+                  await Haptics.selectionAsync();
+                } catch (_error) { }
+                navigation.goBack();
+              }}
+              style={[styles.backButton, { backgroundColor: isDark ? '#252B33' : '#EEF6FC' }]}
+            >
+              <Ionicons name="arrow-back" size={20} color={theme.text} />
+            </Pressable>
 
-          <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: theme.text }]}>{t('chat.title')}</Text>
-            <Text style={[styles.headerSubtitle, { color: theme.mutedText }]}>{t('chat.subtitle')}</Text>
-          </View>
+            <View style={styles.headerCenter}>
+              <Text style={[styles.headerTitle, { color: theme.text }]}>{t('chat.title')}</Text>
+              <Text style={[styles.headerSubtitle, { color: theme.mutedText }]}>{t('chat.subtitle')}</Text>
+            </View>
 
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>{t('chat.online')}</Text>
-          </View>
-        </View>
-
-        {previewBannerChat ? (
-          <View style={[styles.previewBanner, { backgroundColor: isDark ? '#26303A' : '#DDEEFE' }]}>
-            <MaterialCommunityIcons name="history" size={16} color="#346EA1" />
-            <Text style={[styles.previewBannerText, { color: isDark ? '#BFD5EA' : '#2A5F89' }]} numberOfLines={1}>
-              {t('chat.openedFromRecent', { message: previewBannerChat.message || t('chat.previewFallback') })}
-            </Text>
-          </View>
-        ) : null}
-
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessageWithDaySeparator}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.messagesList}
-          showsVerticalScrollIndicator={false}
-          onScrollToIndexFailed={() => scrollToBottom()}
-        />
-
-        {sending ? (
-          <View style={[styles.typingContainer, { backgroundColor: isDark ? '#222A31' : '#EAF4FF', borderColor: theme.border }]}> 
-            <MaterialCommunityIcons name="robot-happy-outline" size={14} color="#2A7FBF" />
-            <Text style={[styles.typingText, { color: theme.primary }]}>{t('chat.thinking', { defaultValue: 'AI is typing...' })}</Text>
-            <View style={styles.typingDotsWrap}>
-              <Animated.View style={[styles.typingDot, { opacity: typingDot1, backgroundColor: theme.primary }]} />
-              <Animated.View style={[styles.typingDot, { opacity: typingDot2, backgroundColor: theme.primary }]} />
-              <Animated.View style={[styles.typingDot, { opacity: typingDot3, backgroundColor: theme.primary }]} />
+            <View style={styles.statusPill}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusText}>{t('chat.online')}</Text>
             </View>
           </View>
-        ) : null}
 
-        {sessionInitialMood && sessionFinalMood ? (
-          <MoodRecoveryCard
-            score={moodRecoveryScore}
-            initialMood={sessionInitialMood}
-            finalMood={sessionFinalMood}
+          {previewBannerChat ? (
+            <View style={[styles.previewBanner, { backgroundColor: isDark ? '#26303A' : '#DDEEFE' }]}>
+              <MaterialCommunityIcons name="history" size={16} color="#346EA1" />
+              <Text style={[styles.previewBannerText, { color: isDark ? '#BFD5EA' : '#2A5F89' }]} numberOfLines={1}>
+                {t('chat.openedFromRecent', { message: previewBannerChat.message || t('chat.previewFallback') })}
+              </Text>
+            </View>
+          ) : null}
+
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessageWithDaySeparator}
+            keyExtractor={(item) => item._id}
+            contentContainerStyle={styles.messagesList}
+            showsVerticalScrollIndicator={false}
+            onScrollToIndexFailed={() => scrollToBottom()}
           />
-        ) : null}
 
-        <View style={styles.inputBarWrap}>
-          <View style={[styles.inputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <TextInput
-              ref={inputRef}
-              style={[styles.input, { color: theme.text }]}
-              placeholder={t('chat.inputPlaceholder')}
-              placeholderTextColor={theme.mutedText}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              editable={!sending}
-              maxLength={500}
+          {sending ? (
+            <View style={[styles.typingContainer, { backgroundColor: isDark ? '#222A31' : '#EAF4FF', borderColor: theme.border }]}>
+              <MaterialCommunityIcons name="robot-happy-outline" size={14} color="#2A7FBF" />
+              <Text style={[styles.typingText, { color: theme.primary }]}>{t('chat.thinking', { defaultValue: 'AI is typing...' })}</Text>
+              <View style={styles.typingDotsWrap}>
+                <Animated.View style={[styles.typingDot, { opacity: typingDot1, backgroundColor: theme.primary }]} />
+                <Animated.View style={[styles.typingDot, { opacity: typingDot2, backgroundColor: theme.primary }]} />
+                <Animated.View style={[styles.typingDot, { opacity: typingDot3, backgroundColor: theme.primary }]} />
+              </View>
+            </View>
+          ) : null}
+
+          {sessionInitialMood && sessionFinalMood ? (
+            <MoodRecoveryCard
+              score={moodRecoveryScore}
+              initialMood={sessionInitialMood}
+              finalMood={sessionFinalMood}
             />
-            <TouchableOpacity
-              style={{ padding: 8, marginRight: 4, alignSelf: 'flex-end', marginBottom: 2 }}
-              onPress={() => {
-                try {
-                  Haptics.selectionAsync();
-                } catch (e) {}
-                navigation.navigate('VoiceCompanion');
-              }}
-            >
-              <Ionicons name="mic-outline" size={24} color={theme.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.sendButton, (sending || !inputText.trim()) && styles.sendButtonDisabled]}
-              onPress={handleSend}
-              disabled={sending || !inputText.trim()}
-              activeOpacity={0.85}
-            >
-              {sending ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Ionicons name="send" size={18} color="#FFFFFF" />
-              )}
-            </TouchableOpacity>
+          ) : null}
+
+          <View style={styles.inputBarWrap}>
+            <View style={[styles.inputContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <TextInput
+                ref={inputRef}
+                style={[styles.input, { color: theme.text }]}
+                placeholder={t('chat.inputPlaceholder')}
+                placeholderTextColor={theme.mutedText}
+                value={inputText}
+                onChangeText={setInputText}
+                multiline
+                editable={!sending}
+                maxLength={500}
+              />
+              <TouchableOpacity
+                style={{ padding: 8, marginRight: 4, alignSelf: 'flex-end', marginBottom: 2 }}
+                onPress={() => {
+                  try {
+                    Haptics.selectionAsync();
+                  } catch (e) { }
+                  navigation.navigate('VoiceCompanion');
+                }}
+              >
+                <Ionicons name="mic-outline" size={24} color={theme.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.sendButton, (sending || !inputText.trim()) && styles.sendButtonDisabled]}
+                onPress={handleSend}
+                disabled={sending || !inputText.trim()}
+                activeOpacity={0.85}
+              >
+                {sending ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons name="send" size={18} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
         </Animated.View>
       </SafeAreaView>
     </KeyboardAvoidingView>

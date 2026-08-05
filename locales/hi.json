@@ -33,7 +33,13 @@
     "quickActions": "त्वरित क्रियाएं",
     "startChat": "चैट शुरू करें",
     "moodInsights": "मूड इनसाइट्स",
-    "dailyTip": "आज की टिप"
+    "dailyTip": "आज की टिप",
+    "voiceAi": "आवाज़ AI",
+    "companion": "साथी",
+    "wellness": "कल्याण",
+    "exercises": "व्यायाम",
+    "moodOverview": "मनोदशा अवलोकन",
+    "details": "विवरण"
   },
   "chat": {
     "title": "AI सपोर्ट सहायक",
@@ -67,7 +73,22 @@
     "editProfile": "प्रोफ़ाइल संपादित करें",
     "notifications": "सूचनाएं",
     "logout": "लॉगआउट",
-    "changePhoto": "फोटो बदलें"
+    "changePhoto": "फोटो बदलें",
+    "personalizePrompt": "अपने AI को वैयक्तिकृत करने के लिए पेंसिल पर टैप करें।",
+    "safetyCircle": "💙 सुरक्षा चक्र",
+    "addTrustedContact": "किसी ऐसे व्यक्ति को जोड़ें जिस पर आप भरोसा करते हैं",
+    "addTrustedContactSubtext": "कठिन क्षणों के दौरान संपर्क करने के लिए एक संपर्क",
+    "languages": "🌐 भाषाएं",
+    "settings": "⚙️ सेटिंग्स",
+    "darkMode": "डार्क मोड",
+    "darkModeSubtitle": "रात के समय के लिए सुखदायक",
+    "supportiveReminders": "सहायक अनुस्मारक",
+    "supportiveRemindersSubtitle": "दैनिक चेक-इन और प्रोत्साहन",
+    "publicLeaderboard": "सार्वजनिक लीडरबोर्ड",
+    "publicLeaderboardSubtitle": "वैश्विक रैंकिंग में शामिल हों",
+    "accountControls": "खाता और डेटा नियंत्रण",
+    "accountControlsSubtitle": "गोपनीयता, डाउनलोड और हटाना",
+    "logoutBtn": "लॉग आउट"
   },
   "onboarding": {
     "skip": "छोड़ें",
@@ -122,5 +143,26 @@
     "edit": "संपादित करें",
     "saved": "सहेजा गया",
     "remove": "हटाएं"
+  },
+  "dashboard": {
+    "goodMorning": "सुप्रभात",
+    "goodAfternoon": "शुभ दोपहर",
+    "goodEvening": "शुभ संध्या",
+    "dayStreak": "दिन की लकीर",
+    "level": "स्तर",
+    "xp": "XP",
+    "dailyWellness": "दैनिक कल्याण",
+    "mood": "मनोदशा",
+    "mind": "मन",
+    "body": "शरीर",
+    "recentActivity": "हाल की गतिविधि",
+    "achievements": "उपलब्धियां",
+    "viewUnlocked": "अनलॉक किए गए देखें",
+    "leaderboard": "लीडरबोर्ड",
+    "globalRank": "वैश्विक रैंक",
+    "heatmap": "हीटमैप",
+    "activityLog": "गतिविधि लॉग",
+    "analytics": "एनालिटिक्स",
+    "moodReports": "मनोदशा और रिपोर्ट"
   }
 }
