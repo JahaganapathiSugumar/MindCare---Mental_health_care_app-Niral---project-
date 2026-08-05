@@ -17,6 +17,7 @@ import { getRecentMoods } from '../services/firebase';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import { radius, shadows, spacing, typography } from '../utils/uiTokens';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const MOOD_OPTIONS = {
   happy: { key: 'moods.happy', emoji: '😊', color: '#50C878', bg: '#EAF9EF' },
@@ -110,7 +111,8 @@ const MoodScreen = ({ navigation }) => {
   const selectedMeta = getMoodMeta(selectedMood);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}> 
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <TopBackButton fallbackRoute="Home" /> 
       <LinearGradient
         colors={isDark ? ['#1A2129', '#121212'] : ['#EAF4FF', '#F7F9FC']}
         start={{ x: 0, y: 0 }}

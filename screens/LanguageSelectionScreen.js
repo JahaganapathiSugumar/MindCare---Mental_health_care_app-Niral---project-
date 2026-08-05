@@ -13,6 +13,7 @@ import Animated, {
   FadeIn
 } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const { width } = Dimensions.get('window');
 
@@ -83,6 +84,7 @@ const LanguageSelectionScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+        <TopBackButton fallbackRoute="Home" />
       <LinearGradient
         colors={['#F7F9FC', '#E8F1FF']}
         style={StyleSheet.absoluteFill}

@@ -21,6 +21,7 @@ import { ensureAuthInitialized } from '../firebase';
 import { sendMessageToAI } from '../services/apiService';
 import { saveChatMessage, saveAIMoodEntry } from '../services/chatService';
 import { useLanguage } from '../context/LanguageContext';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const { width, height } = Dimensions.get('window');
 
@@ -313,6 +314,7 @@ const VoiceCompanionScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+        <TopBackButton fallbackRoute="Home" />
       {/* Background Gradient */}
       <LinearGradient
         colors={['#0F172A', '#1E293B', '#0F172A']}

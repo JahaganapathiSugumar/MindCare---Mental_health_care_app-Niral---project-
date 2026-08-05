@@ -7,6 +7,7 @@ import { Theme } from '../components/ui/Premium/Theme';
 import { GlassCard } from '../components/ui/Premium/GlassCard';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { getTherapistProfile } from '../services/therapistService';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +21,7 @@ export default function TherapistProfileScreen() {
 
   return (
     <View style={styles.container}>
+        <TopBackButton fallbackRoute="Home" />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Top Image & Header */}
         <Animated.View entering={FadeInDown.duration(600)}>

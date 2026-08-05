@@ -20,6 +20,7 @@ import BreathingCircle from '../components/BreathingCircle';
 import GroundingSteps from '../components/GroundingSteps';
 import { saveExerciseActivity } from '../services/activityService';
 import { ensureAuthInitialized, getAuth_ } from '../firebase';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const { width } = Dimensions.get('window');
 
@@ -200,6 +201,7 @@ const ExerciseScreen = ({ navigation, route }) => {
   if (screen === 'menu') {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <TopBackButton fallbackRoute="Home" />
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Header */}
           <View style={{ marginTop: 40 }} />

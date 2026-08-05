@@ -16,7 +16,7 @@ const COLORS = {
   green: '#22C55E',
   text: '#FFFFFF',
   textMuted: '#94A3B8',
-  border: 'rgba(255, 255, 255, 0.1)',
+  border: 'rgba(0, 0, 0, 0.1)',
 };
 
 // 1. Featured Banner Card
@@ -243,13 +243,13 @@ export const FloatingBottomNav = ({ activeTab = 'Home', onTabPress }) => {
     { id: 'Chat', icon: Brain, label: 'Chat' },
     { id: 'LearningHub', icon: Video, label: 'Learn' },
     { id: 'WellnessDashboard', icon: Flame, label: 'Progress' },
-    { id: 'Profile', icon: Calendar, label: 'Profile' },
+    { id: 'TherapistHub', icon: Calendar, label: 'Therapist' },
   ];
 
   return (
     <View style={styles.bottomNavContainer}>
       <LinearGradient
-        colors={['rgba(30, 41, 59, 0.95)', 'rgba(15, 23, 42, 0.98)']}
+        colors={['rgba(255, 255, 255, 0.95)', 'rgba(240, 244, 248, 0.98)']}
         style={styles.bottomNav}
       >
         {tabs.map((tab) => {
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   // Shared
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '500' },
-  progressBar: { height: 4, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2, overflow: 'hidden' },
+  progressBar: { height: 4, backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 2 },
   
   // Featured
@@ -285,12 +285,12 @@ const styles = StyleSheet.create({
   featuredImage: { width: '100%', height: '100%', position: 'absolute' },
   featuredOverlay: { flex: 1, justifyContent: 'flex-end', padding: 20 },
   badgeContainer: { flexDirection: 'row', marginBottom: 12 },
-  badge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  badge: { backgroundColor: 'rgba(0,0,0,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   badgeText: { color: COLORS.text, fontSize: 11, fontWeight: '600' },
   featuredTitle: { color: COLORS.text, fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
   featuredMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   metaActions: { flexDirection: 'row', gap: 10 },
-  actionBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  actionBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.2)', alignItems: 'center', justifyContent: 'center' },
   progressContainer: { width: '100%' },
 
   // Chips
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   videoThumbnailContainer: { width: '100%', height: 130, borderRadius: 16, overflow: 'hidden', marginBottom: 10 },
   videoImage: { width: '100%', height: '100%' },
   videoOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
-  playButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
+  playButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
   videoDuration: { position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.8)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   videoDurationText: { color: COLORS.text, fontSize: 11, fontWeight: 'bold' },
   videoTitle: { color: COLORS.text, fontSize: 14, fontWeight: 'bold', marginBottom: 4 },
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   cbtIconContainer: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(139, 92, 246, 0.2)', alignItems: 'center', justifyContent: 'center' },
   cbtContent: { flex: 1 },
   cbtTitle: { color: COLORS.text, fontSize: 15, fontWeight: 'bold', marginBottom: 8 },
-  cbtAction: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
+  cbtAction: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' },
 
   // Meditation
   meditationCard: { width: 140, marginRight: 12, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border },
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   meditationIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(56, 189, 248, 0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   meditationTitle: { color: COLORS.text, fontSize: 15, fontWeight: 'bold', marginBottom: 8 },
   meditationMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  meditationBadge: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  meditationBadge: { backgroundColor: 'rgba(0,0,0,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   meditationBadgeText: { color: COLORS.text, fontSize: 9, fontWeight: '600' },
 
   // Streak
@@ -361,12 +361,12 @@ const styles = StyleSheet.create({
   // Badge
   achievementBadge: { alignItems: 'center', width: 90, marginRight: 10 },
   achievementLocked: { opacity: 0.5 },
-  achievementIconBox: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 8, borderWidth: 2, borderColor: 'rgba(255,255,255,0.1)' },
+  achievementIconBox: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 8, borderWidth: 2, borderColor: 'rgba(0,0,0,0.1)' },
   achievementTitle: { color: COLORS.text, fontSize: 11, textAlign: 'center', fontWeight: '500' },
 
   // Bottom Nav
   bottomNavContainer: { position: 'absolute', bottom: 20, left: 20, right: 20, alignItems: 'center', zIndex: 100 },
-  bottomNav: { flexDirection: 'row', width: '100%', height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'space-evenly', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 10 },
+  bottomNav: { flexDirection: 'row', width: '100%', height: 70, borderRadius: 35, alignItems: 'center', justifyContent: 'space-evenly', borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 10 },
   navItem: { alignItems: 'center', justifyContent: 'center', flex: 1, height: '100%' },
   navText: { color: COLORS.textMuted, fontSize: 10, marginTop: 4, fontWeight: '500' },
   navTextActive: { color: COLORS.primary, fontWeight: 'bold' },

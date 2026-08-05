@@ -10,6 +10,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { getFirebaseInstance, getAuth_ } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { FloatingBottomNav } from '../components/ui/Premium/LearningHubCards';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 export default function WellnessDashboardScreen({ navigation }) {
   const [userData, setUserData] = React.useState({ level: 1, streak: 0, name: 'User' });
@@ -46,6 +47,7 @@ export default function WellnessDashboardScreen({ navigation }) {
         style={StyleSheet.absoluteFill}
       />
       <SafeAreaView style={{ flex: 1 }}>
+        <TopBackButton fallbackRoute="Home" />
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Header */}
           <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
@@ -144,13 +146,13 @@ const styles = StyleSheet.create({
   statChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(28,58,92,0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: Theme.borderRadius.full,
     gap: 4,
   },
-  statText: { ...Theme.typography.caption, color: '#FFF', fontWeight: 'bold' },
+  statText: { ...Theme.typography.caption, color: '#1C3A5C', fontWeight: 'bold' },
   progressCard: { marginBottom: Theme.spacing.lg },
   sectionTitle: { ...Theme.typography.h3, marginBottom: Theme.spacing.lg },
   ringsContainer: { flexDirection: 'row', justifyContent: 'space-around' },
@@ -160,6 +162,6 @@ const styles = StyleSheet.create({
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: Theme.spacing.md },
   gridItem: { width: '47%' },
   actionCard: { alignItems: 'flex-start', padding: Theme.spacing.md },
-  actionCardTitle: { ...Theme.typography.body, color: '#FFF', fontWeight: '600', marginTop: Theme.spacing.sm },
+  actionCardTitle: { ...Theme.typography.body, color: '#1C3A5C', fontWeight: '600', marginTop: Theme.spacing.sm },
   actionCardSubtitle: { ...Theme.typography.caption, marginTop: 4 },
 });

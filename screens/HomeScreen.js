@@ -26,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../context/LanguageContext';
 import NovaCompanion from '../components/NovaCompanion';
 import NovaTourModal from '../components/NovaTourModal';
+import MoodOverviewGraph from '../components/ui/Premium/MoodOverviewGraph';
 import { FloatingBottomNav } from '../components/ui/Premium/LearningHubCards';
 
 const MOOD_META = {
@@ -601,7 +602,7 @@ const HomeScreen = ({ navigation }) => {
                 styles.actionCard,
                 tourActive && tourStep === 4 && { zIndex: 101, elevation: 101, transform: [{ scale: 1.05 }], shadowColor: '#4FC3F7', shadowOpacity: 0.8, shadowRadius: 15 }
               ]}
-              onPress={() => { DeviceEventEmitter.emit('setNovaState', 'report'); setTimeout(() => handleNavigate('Report'), 500); }}
+              onPress={() => handleNavigate('Journal')}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -618,50 +619,18 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Daily Reflections Agent Section */}
+        {/* Mood Graph Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('home.dailyReflectionTitle', { defaultValue: 'Daily Reflection' })}</Text>
-            <TouchableOpacity onPress={() => loadUserData(true)}>
-              <Text style={[styles.seeAllText, { color: theme.primary }]}>{t('home.refresh')}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Mood Overview</Text>
+            <TouchableOpacity onPress={() => handleNavigate('Mood')}>
+              <Text style={[styles.seeAllText, { color: theme.primary }]}>Details</Text>
             </TouchableOpacity>
           </View>
 
-          {reflectionsLoading ? (
-            <View style={[styles.recentChatsLoadingCard, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
-              <ActivityIndicator size="small" color={theme.primary} />
-              <Text style={[styles.recentChatsLoadingText, { color: theme.mutedText }]}>
-                {t('home.generatingReflection', { defaultValue: 'Generating your daily reflection...' })}
-              </Text>
-            </View>
-          ) : dailyReflections.length ? (
-            <View style={[styles.reflectionCardWrap, { backgroundColor: theme.card, borderColor: theme.border }]}> 
-              {dailyReflections.map((item, index) => (
-                <View key={item.id || `${item.summary}-${index}`} style={styles.reflectionItem}>
-                  <View style={styles.reflectionBadge}>
-                    <MaterialCommunityIcons name="notebook-edit-outline" size={16} color="#FFFFFF" />
-                  </View>
-                  <View style={styles.reflectionContent}>
-                    <Text style={[styles.reflectionSummary, { color: theme.text }]} numberOfLines={3}>
-                      {item.summary}
-                    </Text>
-                    <Text style={[styles.reflectionTime, { color: theme.mutedText }]}>
-                      {getRelativeTime(item.timestamp, t)}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={[styles.emptyActivityContainer, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
-              <Text style={[styles.emptyActivityText, { color: theme.text }]}>
-                {t('home.noReflectionsYet', { defaultValue: 'No reflections yet' })}
-              </Text>
-              <Text style={[styles.emptyActivitySubtext, { color: theme.mutedText }]}>
-                {t('home.noReflectionsHint', { defaultValue: 'Chat and mood check-ins will generate a daily summary card.' })}
-              </Text>
-            </View>
-          )}
+          <View style={{ backgroundColor: theme.card, borderRadius: 16, paddingVertical: 16, borderWidth: 1, borderColor: theme.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 }}>
+            <MoodOverviewGraph moods={moodTrendData} />
+          </View>
         </View>
 
         {/* Wellness Tips Section */}
@@ -681,7 +650,8 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
       </Animated.ScrollView>
-        <NovaTourModal onStateChange={(state) => DeviceEventEmitter.emit('setNovaState', state)} onStepChange={setTourStep} onVisibleChange={setTourActive} />
+
+        <NovaTourModal onStateChange={(state) => DeviceEventEmitter.emit('setNovaState', state)} onStepChange={setTourStep} onVisibleChange={setTourActive} />
         <FloatingBottomNav activeTab="Home" onTabPress={(tab) => navigation.navigate(tab)} />
       </SafeAreaView>
     );
@@ -729,7 +699,7 @@ const styles = StyleSheet.create({
   },
   subgreeting: {
     fontSize: 16,
-    color: '#A1A1AA',
+    color: '#ffffffff',
     fontWeight: '500',
     lineHeight: 22,
   },

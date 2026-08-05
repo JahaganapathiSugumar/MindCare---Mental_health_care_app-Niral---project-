@@ -6,6 +6,7 @@ import { Theme } from '../components/ui/Premium/Theme';
 import { GlassCard } from '../components/ui/Premium/GlassCard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const { width } = Dimensions.get('window');
 
@@ -26,6 +27,7 @@ export default function AchievementGalleryScreen() {
         style={StyleSheet.absoluteFill}
       />
       <SafeAreaView style={{ flex: 1 }}>
+        <TopBackButton fallbackRoute="Home" />
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Animated.View entering={FadeInDown.duration(600)}>
             <Text style={styles.title}>Achievements</Text>

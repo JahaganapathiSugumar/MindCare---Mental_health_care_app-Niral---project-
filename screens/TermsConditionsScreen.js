@@ -13,19 +13,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
+import { getFirebaseInstance } from '../firebase';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const TermsConditionsScreen = ({ navigation }) => {
   const { t } = useTranslation();
   const [agreed, setAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
-  const auth = getAuth();
-  const db = getFirestore();
 
   const handleAccept = async () => {
     if (!agreed) {
@@ -47,7 +46,8 @@ const TermsConditionsScreen = ({ navigation }) => {
       await AsyncStorage.setItem('termsAcceptedAt', timestamp);
 
       // Save to Firebase
-      if (auth.currentUser?.uid) {
+      const { auth, db } = getFirebaseInstance();
+      if (auth?.currentUser?.uid && db) {
         const userRef = doc(db, 'users', auth.currentUser.uid);
         await setDoc(
           userRef,
@@ -99,6 +99,7 @@ const TermsConditionsScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+        <TopBackButton fallbackRoute="Home" />
       <LinearGradient
         colors={['#F7F9FC', '#E8F1FF']}
         style={StyleSheet.absoluteFill}

@@ -12,8 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getFirebaseInstance } from '../firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { 
   FadeInRight, 
@@ -25,6 +25,7 @@ import Animated, {
   withTiming
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const { width } = Dimensions.get('window');
 
@@ -158,10 +159,10 @@ const PersonalizationScreen = ({ navigation }) => {
   const handleComplete = async () => {
     setLoading(true);
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
+      const { auth, db } = getFirebaseInstance();
+      const user = auth?.currentUser;
 
-      if (!user) {
+      if (!user || !db) {
         Alert.alert('Error', 'User not authenticated');
         setLoading(false);
         return;
@@ -175,7 +176,6 @@ const PersonalizationScreen = ({ navigation }) => {
         personalizationCompletedAt: new Date().toISOString(),
       };
 
-      const db = getFirestore();
       await setDoc(doc(db, 'users', user.uid), userProfile, { merge: true });
 
       await AsyncStorage.setItem('userProfile', JSON.stringify(userProfile));
@@ -198,6 +198,7 @@ const PersonalizationScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+        <TopBackButton fallbackRoute="Home" />
       <LinearGradient
         colors={['#F7F9FC', '#E8F1FF']}
         style={StyleSheet.absoluteFill}

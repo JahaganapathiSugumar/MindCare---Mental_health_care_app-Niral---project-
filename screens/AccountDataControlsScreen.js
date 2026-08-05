@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 export default function AccountDataControlsScreen({ navigation }) {
   // Toggle states
@@ -92,6 +93,7 @@ export default function AccountDataControlsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+        <TopBackButton fallbackRoute="Home" />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <MaterialCommunityIcons name="arrow-left" size={24} color="#E2E8F0" />

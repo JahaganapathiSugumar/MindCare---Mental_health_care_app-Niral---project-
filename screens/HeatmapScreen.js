@@ -7,6 +7,7 @@ import { GlassCard } from '../components/ui/Premium/GlassCard';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { getAuth_, getFirebaseInstance } from '../firebase';
 import { getYearlyActivityMap } from '../services/firebase';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const { width } = Dimensions.get('window');
 
@@ -127,6 +128,7 @@ export default function HeatmapScreen() {
         style={StyleSheet.absoluteFill}
       />
       <SafeAreaView style={{ flex: 1 }}>
+        <TopBackButton fallbackRoute="Home" />
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Animated.View entering={FadeInDown.duration(600)}>
             <Text style={styles.title}>Yearly Activity</Text>

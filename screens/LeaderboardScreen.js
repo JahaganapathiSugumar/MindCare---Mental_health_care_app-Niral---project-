@@ -8,6 +8,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { getFirebaseInstance, getAuth_ } from '../firebase';
 import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 export default function LeaderboardScreen() {
   const [leaderboardData, setLeaderboardData] = useState([]);
@@ -126,6 +127,7 @@ export default function LeaderboardScreen() {
         style={StyleSheet.absoluteFill}
       />
       <SafeAreaView style={{ flex: 1 }}>
+        <TopBackButton fallbackRoute="Home" />
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Animated.View entering={FadeInDown.duration(600)}>
             <Text style={styles.title}>Community</Text>

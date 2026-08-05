@@ -358,7 +358,7 @@ const RootNavigator = () => {
           </>
         )}
       </Stack.Navigator>
-      {user && (
+      {user && hasSelectedLanguage && termsAccepted && hasSeenOnboarding && personalizationCompleted && trustedContactSetup && (
         <>
           <EmergencyFAB />
           <GlobalNova />

@@ -9,6 +9,7 @@ import { Theme } from '../components/ui/Premium/Theme';
 import { GlassCard } from '../components/ui/Premium/GlassCard';
 import Animated, { FadeIn, FadeInDown, SlideInDown } from 'react-native-reanimated';
 import { getNearbyProfessionals } from '../services/therapistService';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const { width, height } = Dimensions.get('window');
 
@@ -93,6 +94,7 @@ export default function NearbyTherapistsScreen() {
     return (
       <View style={styles.container}>
         <SafeAreaView style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
+        <TopBackButton fallbackRoute="Home" />
           <Animated.View entering={FadeInDown.duration(800)}>
             <GlassCard style={styles.permissionCard}>
               <View style={styles.permissionIconWrapper}>

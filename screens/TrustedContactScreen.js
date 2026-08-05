@@ -18,12 +18,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getFirebaseInstance } from '../firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import * as Contacts from 'expo-contacts';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const TrustedContactScreen = ({ navigation }) => {
   const { t } = useTranslation();
@@ -33,6 +34,12 @@ const TrustedContactScreen = ({ navigation }) => {
   const [showContactsModal, setShowContactsModal] = useState(false);
   const [deviceContacts, setDeviceContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredContacts = deviceContacts.filter(contact =>
+    (contact.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (contact.phones || []).some(phone => phone.includes(searchQuery))
+  );
 
   const handleSaveContact = async () => {
     if (!contactName.trim() || !phoneNumber.trim()) {
@@ -56,10 +63,10 @@ const TrustedContactScreen = ({ navigation }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
+      const { auth, db } = getFirebaseInstance();
+      const user = auth?.currentUser;
 
-      if (!user) {
+      if (!user || !db) {
         Alert.alert('Error', 'User not authenticated');
         setLoading(false);
         return;
@@ -74,7 +81,6 @@ const TrustedContactScreen = ({ navigation }) => {
         trustedContactSetup: true,
       };
 
-      const db = getFirestore();
       await setDoc(doc(db, 'users', user.uid), trustedContactData, { merge: true });
 
       await AsyncStorage.setItem('trustedContactAdded', 'true');
@@ -139,10 +145,17 @@ const TrustedContactScreen = ({ navigation }) => {
       setPhoneNumber(contact.phones[0]);
     }
     setShowContactsModal(false);
+    setSearchQuery('');
+  };
+
+  const closeContactsModal = () => {
+    setShowContactsModal(false);
+    setSearchQuery('');
   };
 
   return (
     <SafeAreaView style={styles.container}>
+        <TopBackButton fallbackRoute="Home" />
       <LinearGradient
         colors={['#F7F9FC', '#E8F1FF']}
         style={StyleSheet.absoluteFill}
@@ -235,17 +248,34 @@ const TrustedContactScreen = ({ navigation }) => {
         visible={showContactsModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowContactsModal(false)}
+        onRequestClose={closeContactsModal}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Contact</Text>
-            <TouchableOpacity onPress={() => setShowContactsModal(false)} style={styles.closeButton}>
+            <TouchableOpacity onPress={closeContactsModal} style={styles.closeButton}>
               <MaterialCommunityIcons name="close" size={24} color="#1C3A5C" />
             </TouchableOpacity>
           </View>
+          
+          <View style={styles.searchContainer}>
+            <MaterialCommunityIcons name="magnify" size={20} color="#A0B3C6" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search contacts..."
+              placeholderTextColor="#A0B3C6"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <MaterialCommunityIcons name="close-circle" size={20} color="#A0B3C6" />
+              </TouchableOpacity>
+            )}
+          </View>
+
           <FlatList
-            data={deviceContacts}
+            data={filteredContacts}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <TouchableOpacity
@@ -432,6 +462,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F4F8',
+    borderRadius: 12,
+    marginHorizontal: 24,
+    marginTop: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1C3A5C',
+    marginLeft: 8,
   },
   modalTitle: {
     fontSize: 18,

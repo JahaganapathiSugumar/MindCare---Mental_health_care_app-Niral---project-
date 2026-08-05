@@ -1,17 +1,17 @@
 export const Theme = {
   colors: {
-    background: '#0B1220',
-    primary: '#3B82F6',
+    background: '#F7F9FC',
+    primary: '#4A90E2',
     accent: '#38BDF8',
     success: '#22C55E',
     purple: '#8B5CF6',
     gold: '#FACC15',
-    text: '#FFFFFF',
-    textSecondary: '#94A3B8',
-    cardBackground: 'rgba(255, 255, 255, 0.05)',
-    cardBorder: 'rgba(255, 255, 255, 0.1)',
+    text: '#1C3A5C',
+    textSecondary: '#6E859A',
+    cardBackground: '#FFFFFF',
+    cardBorder: '#E8F1FF',
     heatmap: {
-      level0: '#1E293B',
+      level0: '#E8F1FF',
       level1: '#0EA5E9',
       level2: '#3B82F6',
       level3: '#2563EB',
@@ -35,10 +35,10 @@ export const Theme = {
     full: 9999,
   },
   typography: {
-    h1: { fontSize: 34, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.5 },
-    h2: { fontSize: 28, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.5 },
-    h3: { fontSize: 22, fontWeight: '600', color: '#FFFFFF', letterSpacing: 0.3 },
-    body: { fontSize: 16, fontWeight: '400', color: '#94A3B8', letterSpacing: 0 },
-    caption: { fontSize: 13, fontWeight: '500', color: '#94A3B8', letterSpacing: 0 },
+    h1: { fontSize: 34, fontWeight: '700', color: '#1C3A5C', letterSpacing: 0.5 },
+    h2: { fontSize: 28, fontWeight: '700', color: '#1C3A5C', letterSpacing: 0.5 },
+    h3: { fontSize: 22, fontWeight: '600', color: '#1C3A5C', letterSpacing: 0.3 },
+    body: { fontSize: 16, fontWeight: '400', color: '#6E859A', letterSpacing: 0 },
+    caption: { fontSize: 13, fontWeight: '500', color: '#6E859A', letterSpacing: 0 },
   }
 };

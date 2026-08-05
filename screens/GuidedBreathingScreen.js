@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import PremiumBreathingCircle from '../components/PremiumBreathingCircle';
 import { saveExerciseActivity } from '../services/activityService';
 import { ensureAuthInitialized, getAuth_ } from '../firebase';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const EXERCISES = [
   { id: 'box', title: 'Box Breathing', subtitle: '4-4-4-4 Pattern', durationStr: '2 min', difficulty: 'Beginner', benefits: 'Focus & Calm', pattern: [4, 4, 4, 4], targetCycles: 8, color: '#4FC3F7', icon: 'square-outline' },
@@ -245,6 +246,7 @@ export default function GuidedBreathingScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+        <TopBackButton fallbackRoute="Home" />
       {view === 'home' && (
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.backNav} onPress={() => navigation.goBack()}>

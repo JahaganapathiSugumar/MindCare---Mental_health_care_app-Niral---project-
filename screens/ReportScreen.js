@@ -19,6 +19,7 @@ import { fetchProfileData } from '../services/profileService';
 import { fetchDailyMentalReport, generateDailyReportPdf } from '../services/reportService';
 import { useTheme } from '../context/ThemeContext';
 import { radius, shadows, spacing, typography } from '../utils/uiTokens';
+import TopBackButton from '../components/ui/Premium/TopBackButton';
 
 const ReportScreen = ({ navigation }) => {
   const { t } = useTranslation();
@@ -93,7 +94,8 @@ const ReportScreen = ({ navigation }) => {
   }, [language, t]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}> 
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <TopBackButton fallbackRoute="Home" /> 
       <LinearGradient
         colors={isDark ? ['#1A2129', '#121212'] : ['#EAF4FF', '#F7F9FC']}
         start={{ x: 0, y: 0 }}

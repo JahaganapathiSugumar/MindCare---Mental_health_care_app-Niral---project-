@@ -12,8 +12,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { setHasSeenOnboarding } from '../utils/storage';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getFirebaseInstance } from '../firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -28,10 +28,9 @@ const OnboardingScreen = ({ navigation, route }) => {
     try {
       await setHasSeenOnboarding(true);
       
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (user) {
-        const db = getFirestore();
+      const { auth, db } = getFirebaseInstance();
+      const user = auth?.currentUser;
+      if (user && db) {
         await setDoc(doc(db, 'users', user.uid), { hasSeenOnboarding: true }, { merge: true });
       }
       navigation.replace('Personalization');

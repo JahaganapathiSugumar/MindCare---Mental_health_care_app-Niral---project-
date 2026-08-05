@@ -6,6 +6,8 @@ try {
 }
 
 import React, { useEffect } from 'react';
+import { LogBox } from 'react-native';
+LogBox.ignoreLogs(['expo-notifications: Android Push notifications']);
 import { StatusBar, Alert } from 'expo-status-bar';
 import RootNavigator from './navigation/RootNavigator';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
